@@ -1,39 +1,121 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
-import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
-import 'react-native-reanimated';
+import { PaperProvider, MD3DarkTheme, adaptNavigationTheme, configureFonts } from 'react-native-paper';
+import { DarkTheme as NavigationDarkTheme } from '@react-navigation/native';
+import { useMemo } from 'react';
+import { Platform } from 'react-native';
 
-import { useColorScheme } from '@/hooks/useColorScheme';
-
-// Prevent the splash screen from auto-hiding before asset loading is complete.
-SplashScreen.preventAutoHideAsync();
-
-export default function RootLayout() {
-  const colorScheme = useColorScheme();
-  const [loaded] = useFonts({
-    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
+export default function Layout() {
+  // Merge navigation theme with Paper theme
+  const { DarkTheme } = adaptNavigationTheme({
+    reactNavigationDark: NavigationDarkTheme,
   });
 
-  useEffect(() => {
-    if (loaded) {
-      SplashScreen.hideAsync();
-    }
-  }, [loaded]);
+  const fontConfig = {
+    customVariant: configureFonts({
+      config: {
+        fontFamily: Platform.select({
+          web: 'Roboto, "Helvetica Neue", Helvetica, Arial, sans-serif',
+          ios: 'System',
+          default: 'sans-serif',
+        }),
+      },
+    }),
+  };
 
-  if (!loaded) {
-    return null;
-  }
+  const combinedTheme = useMemo(() => ({
+    ...MD3DarkTheme,
+    ...DarkTheme,
+    fonts: fontConfig.customVariant,
+    colors: {
+      ...MD3DarkTheme.colors,
+      ...DarkTheme.colors,
+      // Custom colors
+      primary: '#2196F3',
+      background: '#121212',
+      surface: '#1E1E1E',
+      card: '#252525',
+    },
+    // Override all text variants
+    textVariants: {
+      labelLarge: {
+        fontWeight: 'medium',
+      },
+      labelMedium: {
+        fontWeight: 'medium',
+      },
+      labelSmall: {
+        fontWeight: 'medium',
+      },
+      bodyLarge: {
+        fontWeight: 'regular',
+      },
+      bodyMedium: {
+        fontWeight: 'regular',
+      },
+      bodySmall: {
+        fontWeight: 'regular',
+      },
+      titleLarge: {
+        fontWeight: 'bold',
+      },
+      titleMedium: {
+        fontWeight: 'bold',
+      },
+      titleSmall: {
+        fontWeight: 'bold',
+      },
+      headlineLarge: {
+        fontWeight: 'heavy',
+      },
+      headlineMedium: {
+        fontWeight: 'heavy',
+      },
+      headlineSmall: {
+        fontWeight: 'heavy',
+      },
+    },
+  }), []);
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="+not-found" />
+    <PaperProvider theme={combinedTheme}>
+      <Stack
+        screenOptions={{
+          headerStyle: {
+            backgroundColor: combinedTheme.colors.surface,
+          },
+          headerTintColor: combinedTheme.colors.onSurface,
+          headerTitleStyle: {
+            color: combinedTheme.colors.onSurface,
+          },
+        }}
+      >
+        <Stack.Screen 
+          name="index" 
+          options={{ 
+            headerShown: false 
+          }} 
+        />
+        <Stack.Screen 
+          name="login"
+          options={{
+            title: 'Login',
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen 
+          name="register"
+          options={{
+            title: 'Register',
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen 
+          name="(app)"
+          options={{
+            headerShown: false,
+          }}
+        />
       </Stack>
-      <StatusBar style="auto" />
-    </ThemeProvider>
+    </PaperProvider>
   );
 }
