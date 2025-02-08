@@ -27,7 +27,7 @@ export default function AppLayout() {
         }}
       />
       <Tabs.Screen
-        name="workout/index"
+        name="workout"
         options={{
           title: 'Workout',
           tabBarIcon: ({ color }) => (

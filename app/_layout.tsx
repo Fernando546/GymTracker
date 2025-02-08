@@ -3,6 +3,7 @@ import { PaperProvider, MD3DarkTheme, adaptNavigationTheme, configureFonts } fro
 import { DarkTheme as NavigationDarkTheme } from '@react-navigation/native';
 import { useMemo } from 'react';
 import { Platform } from 'react-native';
+import { AuthProvider } from './context/AuthContext';
 
 export default function Layout() {
   // Merge navigation theme with Paper theme
@@ -77,45 +78,47 @@ export default function Layout() {
   }), []);
 
   return (
-    <PaperProvider theme={combinedTheme}>
-      <Stack
-        screenOptions={{
-          headerStyle: {
-            backgroundColor: combinedTheme.colors.surface,
-          },
-          headerTintColor: combinedTheme.colors.onSurface,
-          headerTitleStyle: {
-            color: combinedTheme.colors.onSurface,
-          },
-        }}
-      >
-        <Stack.Screen 
-          name="index" 
-          options={{ 
-            headerShown: false 
-          }} 
-        />
-        <Stack.Screen 
-          name="login"
-          options={{
-            title: 'Login',
-            headerShown: false,
+    <AuthProvider>
+      <PaperProvider theme={combinedTheme}>
+        <Stack
+          screenOptions={{
+            headerStyle: {
+              backgroundColor: combinedTheme.colors.surface,
+            },
+            headerTintColor: combinedTheme.colors.onSurface,
+            headerTitleStyle: {
+              color: combinedTheme.colors.onSurface,
+            },
           }}
-        />
-        <Stack.Screen 
-          name="register"
-          options={{
-            title: 'Register',
-            headerShown: false,
-          }}
-        />
-        <Stack.Screen 
-          name="(app)"
-          options={{
-            headerShown: false,
-          }}
-        />
-      </Stack>
-    </PaperProvider>
+        >
+          <Stack.Screen 
+            name="index" 
+            options={{ 
+              headerShown: false 
+            }} 
+          />
+          <Stack.Screen 
+            name="login"
+            options={{
+              title: 'Login',
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen 
+            name="register"
+            options={{
+              title: 'Register',
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen 
+            name="(app)"
+            options={{
+              headerShown: false,
+            }}
+          />
+        </Stack>
+      </PaperProvider>
+    </AuthProvider>
   );
 }
