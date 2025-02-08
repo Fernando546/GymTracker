@@ -2,24 +2,60 @@ import { Link, router } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 import { Button, Text, TextInput, useTheme } from 'react-native-paper';
 import { useState } from 'react';
+import { useAuth } from './context/AuthContext';
 
 export default function Register() {
   const theme = useTheme();
+  const { signUp } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleRegister = () => {
-    // Add registration logic here
-    router.replace('/(app)/home' as any);
+  const validateEmail = (email: string) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  const handleRegister = async () => {
+    try {
+      setError('');
+      
+      if (!validateEmail(email)) {
+        setError('Please enter a valid email address');
+        return;
+      }
+
+      if (password.length < 6) {
+        setError('Password must be at least 6 characters long');
+        return;
+      }
+
+      if (password !== confirmPassword) {
+        setError('Passwords do not match');
+        return;
+      }
+
+      setLoading(true);
+      await signUp(email.toLowerCase().trim(), password);
+      router.replace('/(app)/home' as any);
+    } catch (e: any) {
+      console.log('Registration error:', e?.code);
+      if (e?.code === 'auth/email-already-in-use') {
+        setError('This email is already registered');
+      } else {
+        setError('Failed to create account. Please try again.');
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <Text style={[styles.title, { color: theme.colors.onBackground }]}>
-        Create Account
-      </Text>
-
+      <Text style={styles.title}>Create Account</Text>
+      {error ? <Text style={[styles.error, { color: theme.colors.error }]}>{error}</Text> : null}
       <View style={styles.form}>
         <TextInput
           label="Email"
@@ -28,6 +64,7 @@ export default function Register() {
           mode="outlined"
           keyboardType="email-address"
           autoCapitalize="none"
+          disabled={loading}
         />
         <TextInput
           label="Password"
@@ -35,6 +72,7 @@ export default function Register() {
           onChangeText={setPassword}
           mode="outlined"
           secureTextEntry
+          disabled={loading}
         />
         <TextInput
           label="Confirm Password"
@@ -42,23 +80,23 @@ export default function Register() {
           onChangeText={setConfirmPassword}
           mode="outlined"
           secureTextEntry
+          disabled={loading}
         />
         <Button 
           mode="contained"
           onPress={handleRegister}
           style={styles.button}
+          loading={loading}
+          disabled={loading}
         >
           Register
         </Button>
       </View>
-
       <View style={styles.footer}>
-        <Text style={{ color: theme.colors.onBackground }}>
-          Already have an account?{' '}
-          <Link href={'/login' as any} style={{ color: theme.colors.primary }}>
-            Login
-          </Link>
-        </Text>
+        <Text>Already have an account? </Text>
+        <Link href="/login" asChild>
+          <Button mode="text">Login</Button>
+        </Link>
       </View>
     </View>
   );
@@ -70,20 +108,24 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   title: {
-    fontSize: 32,
+    fontSize: 24,
     fontWeight: 'bold',
-    marginBottom: 32,
-    textAlign: 'center',
+    marginBottom: 20,
   },
   form: {
-    gap: 16,
+    gap: 12,
   },
   button: {
     marginTop: 8,
-    paddingVertical: 8,
   },
   footer: {
     marginTop: 'auto',
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+  },
+  error: {
+    marginBottom: 12,
+    textAlign: 'center',
   },
 }); 
