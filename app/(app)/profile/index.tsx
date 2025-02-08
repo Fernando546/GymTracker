@@ -1,17 +1,19 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
-import { Text, useTheme, Button, Card, Avatar, IconButton } from 'react-native-paper';
+import { Text, useTheme, Button, Card, Avatar, IconButton, TextInput as PaperTextInput } from 'react-native-paper';
 import { router } from 'expo-router';
 import { useUserProfile } from '../../hooks/useUserProfile';
 import { useAuth } from '../../context/AuthContext';
 import * as ImagePicker from 'expo-image-picker';
-import { pickImage, uploadProfileImage } from '../../services/user';
+import { pickImage, uploadProfileImage, updateUserProfile } from '../../services/user';
 
 export default function ProfileScreen() {
   const theme = useTheme();
   const { profile, loading, error, refetch } = useUserProfile();
   const { signOut, user } = useAuth();
   const [isUploading, setIsUploading] = useState(false);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [newName, setNewName] = useState(profile?.profile?.name || '');
 
   const handleImagePick = async () => {
     try {
@@ -32,6 +34,21 @@ export default function ProfileScreen() {
       alert('Failed to update profile image');
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  const handleUpdateName = async () => {
+    try {
+      if (!user) return;
+      setIsEditingName(false);
+      await updateUserProfile(user.uid, {
+        ...profile?.profile,
+        name: newName.trim()
+      });
+      await refetch();
+    } catch (error) {
+      console.error('Error updating name:', error);
+      alert('Failed to update name');
     }
   };
 
@@ -80,12 +97,29 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </View>
 
-        <Text style={[styles.name, { color: theme.colors.onBackground }]}>
-          {profile?.profile?.name}
-        </Text>
-        <Text style={[styles.username, { color: theme.colors.onBackground }]}>
-          @{profile?.username}
-        </Text>
+        <View style={styles.nameContainer}>
+          {isEditingName ? (
+            <PaperTextInput
+              value={newName}
+              onChangeText={setNewName}
+              style={[styles.nameInput, { backgroundColor: 'transparent' }]}
+              onBlur={handleUpdateName}
+              autoFocus
+            />
+          ) : (
+            <TouchableOpacity onPress={() => {
+              setNewName(profile?.profile?.name || '');
+              setIsEditingName(true);
+            }}>
+              <Text style={[styles.name, { color: theme.colors.onBackground }]}>
+                {profile?.profile?.name || 'Add name'}
+              </Text>
+            </TouchableOpacity>
+          )}
+          <Text style={[styles.usernameTag, { color: theme.colors.onBackground }]}>
+            @{profile?.username}
+          </Text>
+        </View>
         <Text style={[styles.bio, { color: theme.colors.onBackground }]}>
           {profile?.profile?.bio || 'No bio yet'}
         </Text>
@@ -167,15 +201,18 @@ const styles = StyleSheet.create({
     right: 0,
     borderRadius: 20,
   },
+  nameContainer: {
+    alignItems: 'center',
+    marginBottom: 16,
+  },
   name: {
     fontSize: 24,
     fontWeight: 'bold',
-    marginBottom: 8,
+    marginBottom: 4,
   },
-  username: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginTop: 12,
+  usernameTag: {
+    fontSize: 14,
+    opacity: 0.7,
   },
   bio: {
     textAlign: 'center',
@@ -212,5 +249,12 @@ const styles = StyleSheet.create({
   editButton: {
     marginHorizontal: 20,
     marginBottom: 20,
+  },
+  nameInput: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 8,
+    width: '80%',
   },
 }); 

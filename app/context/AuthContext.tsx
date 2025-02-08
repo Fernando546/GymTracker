@@ -45,7 +45,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       username: username,
       createdAt: new Date(),
       profile: {
-        name: '',
+        name: username,
         bio: '',
         followers: 0,
         following: 0,
