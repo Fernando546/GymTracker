@@ -8,6 +8,7 @@ export default function Register() {
   const theme = useTheme();
   const { signUp } = useAuth();
   const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -27,6 +28,16 @@ export default function Register() {
         return;
       }
 
+      if (!username.trim()) {
+        setError('Username is required');
+        return;
+      }
+
+      if (username.length < 3) {
+        setError('Username must be at least 3 characters long');
+        return;
+      }
+
       if (password.length < 6) {
         setError('Password must be at least 6 characters long');
         return;
@@ -38,7 +49,7 @@ export default function Register() {
       }
 
       setLoading(true);
-      await signUp(email.toLowerCase().trim(), password);
+      await signUp(email.toLowerCase().trim(), password, username.trim());
       router.replace('/(app)/home' as any);
     } catch (e: any) {
       console.log('Registration error:', e?.code);
@@ -63,6 +74,14 @@ export default function Register() {
           onChangeText={setEmail}
           mode="outlined"
           keyboardType="email-address"
+          autoCapitalize="none"
+          disabled={loading}
+        />
+        <TextInput
+          label="Username"
+          value={username}
+          onChangeText={setUsername}
+          mode="outlined"
           autoCapitalize="none"
           disabled={loading}
         />

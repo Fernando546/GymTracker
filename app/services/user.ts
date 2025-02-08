@@ -1,6 +1,8 @@
 import { db, storage } from '../config/firebase';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import * as ImagePicker from 'expo-image-picker';
+import { uploadToCloudinary } from './imageUpload';
 
 export interface UserProfile {
   name: string;
@@ -22,12 +24,35 @@ export const updateUserProfile = async (userId: string, profile: Partial<UserPro
   await updateDoc(docRef, { profile: profile });
 };
 
-export const uploadProfileImage = async (userId: string, uri: string) => {
-  const response = await fetch(uri);
-  const blob = await response.blob();
-  const storageRef = ref(storage, `profiles/${userId}`);
-  await uploadBytes(storageRef, blob);
-  const url = await getDownloadURL(storageRef);
-  await updateUserProfile(userId, { imageUrl: url });
-  return url;
-}; 
+export async function pickImage() {
+  const result = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+    allowsEditing: true,
+    aspect: [1, 1],
+    quality: 0.5,
+    base64: true,
+  });
+
+  if (!result.canceled) {
+    return result.assets[0].uri;
+  }
+  return null;
+}
+
+export async function uploadProfileImage(userId: string, uri: string) {
+  try {
+    // Upload to Cloudinary first
+    const imageUrl = await uploadToCloudinary(uri);
+    
+    // Then update the profile with the Cloudinary URL
+    const userRef = doc(db, 'users', userId);
+    await updateDoc(userRef, {
+      'profile.imageUrl': imageUrl
+    });
+    
+    return imageUrl;
+  } catch (error) {
+    console.error('Error updating profile image:', error);
+    throw error;
+  }
+} 

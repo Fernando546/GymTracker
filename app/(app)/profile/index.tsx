@@ -1,60 +1,99 @@
-import React from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
+import React, { useState } from 'react';
+import { View, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
 import { Text, useTheme, Button, Card, Avatar, IconButton } from 'react-native-paper';
 import { router } from 'expo-router';
+import { useUserProfile } from '../../hooks/useUserProfile';
+import { useAuth } from '../../context/AuthContext';
+import * as ImagePicker from 'expo-image-picker';
+import { pickImage, uploadProfileImage } from '../../services/user';
 
 export default function ProfileScreen() {
   const theme = useTheme();
+  const { profile, loading, error, refetch } = useUserProfile();
+  const { signOut, user } = useAuth();
+  const [isUploading, setIsUploading] = useState(false);
 
-  // Placeholder data - replace with real data later
-  const profile = {
-    name: "John Doe",
-    bio: "Fitness enthusiast | Working on becoming stronger every day",
-    followers: 128,
-    following: 145,
-    achievements: 12,
-    imageUrl: null // placeholder for profile image
+  const handleImagePick = async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        alert('Sorry, we need camera roll permissions to make this work!');
+        return;
+      }
+
+      const imageUri = await pickImage();
+      if (imageUri && user) {
+        setIsUploading(true);
+        await uploadProfileImage(user.uid, imageUri);
+        await refetch();
+      }
+    } catch (error) {
+      console.error('Error updating profile image:', error);
+      alert('Failed to update profile image');
+    } finally {
+      setIsUploading(false);
+    }
   };
+
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <Text>Loading...</Text>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.container}>
+        <Text>Error: {error}</Text>
+      </View>
+    );
+  }
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <View style={styles.header}>
-        <TouchableOpacity 
-          style={styles.avatarContainer}
-          onPress={() => {/* Add image picker logic */}}
-        >
-          {profile.imageUrl ? (
-            <Image 
-              source={{ uri: profile.imageUrl }} 
-              style={styles.avatar}
-            />
-          ) : (
-            <Avatar.Icon 
-              size={120} 
-              icon="account"
-              style={{ backgroundColor: theme.colors.primary }}
-            />
-          )}
-          <View style={[styles.editBadge, { backgroundColor: theme.colors.primary }]}>
-            <IconButton 
-              icon="camera" 
-              size={20}
-              iconColor={theme.colors.onPrimary}
-            />
-          </View>
-        </TouchableOpacity>
+        <View style={styles.avatarContainer}>
+          <TouchableOpacity 
+            style={styles.avatarContainer}
+            onPress={handleImagePick}
+            disabled={isUploading}
+          >
+            {profile?.profile?.imageUrl ? (
+              <Image 
+                source={{ uri: profile.profile.imageUrl }} 
+                style={styles.avatar}
+              />
+            ) : (
+              <Avatar.Text 
+                size={120}
+                label={profile?.username?.substring(0, 2).toUpperCase() ?? '??'}
+                style={{ backgroundColor: theme.colors.primary }}
+              />
+            )}
+            {isUploading && (
+              <View style={[styles.editBadge, { backgroundColor: theme.colors.primary }]}>
+                <ActivityIndicator size="small" color={theme.colors.onPrimary} />
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
 
         <Text style={[styles.name, { color: theme.colors.onBackground }]}>
-          {profile.name}
+          {profile?.profile?.name}
+        </Text>
+        <Text style={[styles.username, { color: theme.colors.onBackground }]}>
+          @{profile?.username}
         </Text>
         <Text style={[styles.bio, { color: theme.colors.onBackground }]}>
-          {profile.bio}
+          {profile?.profile?.bio || 'No bio yet'}
         </Text>
 
         <View style={styles.statsContainer}>
           <View style={styles.statItem}>
             <Text style={[styles.statNumber, { color: theme.colors.primary }]}>
-              {profile.followers}
+              {profile?.profile?.followers ?? 0}
             </Text>
             <Text style={[styles.statLabel, { color: theme.colors.onBackground }]}>
               Followers
@@ -62,7 +101,7 @@ export default function ProfileScreen() {
           </View>
           <View style={styles.statItem}>
             <Text style={[styles.statNumber, { color: theme.colors.primary }]}>
-              {profile.following}
+              {profile?.profile?.following ?? 0}
             </Text>
             <Text style={[styles.statLabel, { color: theme.colors.onBackground }]}>
               Following
@@ -70,7 +109,7 @@ export default function ProfileScreen() {
           </View>
           <View style={styles.statItem}>
             <Text style={[styles.statNumber, { color: theme.colors.primary }]}>
-              {profile.achievements}
+              {profile?.profile?.achievements ?? 0}
             </Text>
             <Text style={[styles.statLabel, { color: theme.colors.onBackground }]}>
               Achievements
@@ -96,10 +135,10 @@ export default function ProfileScreen() {
 
       <Button 
         mode="outlined"
-        onPress={() => {/* Add edit profile logic */}}
+        onPress={signOut}
         style={styles.editButton}
       >
-        Edit Profile
+        Sign Out
       </Button>
     </ScrollView>
   );
@@ -132,6 +171,11 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     marginBottom: 8,
+  },
+  username: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginTop: 12,
   },
   bio: {
     textAlign: 'center',

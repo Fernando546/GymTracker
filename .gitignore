@@ -48,6 +48,7 @@ yarn-error.*
 app/config/constants.ts
 app/config/env.ts
 app/config/firebase.config.ts
+app/config/cloudinary.ts
 app.config.js
 
 # Temporary files
