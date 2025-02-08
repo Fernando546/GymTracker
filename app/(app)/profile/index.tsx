@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
-import { Text, useTheme, Button, Card, Avatar, IconButton, TextInput as PaperTextInput } from 'react-native-paper';
+import { Text, useTheme, Button, Card, Avatar, IconButton, TextInput as PaperTextInput, Button as PaperButton } from 'react-native-paper';
 import { router } from 'expo-router';
 import { useUserProfile } from '../../hooks/useUserProfile';
 import { useAuth } from '../../context/AuthContext';
@@ -14,6 +14,8 @@ export default function ProfileScreen() {
   const [isUploading, setIsUploading] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
   const [newName, setNewName] = useState(profile?.profile?.name || '');
+  const [isEditingBio, setIsEditingBio] = useState(false);
+  const [newBio, setNewBio] = useState(profile?.profile?.bio || '');
 
   const handleImagePick = async () => {
     try {
@@ -49,6 +51,21 @@ export default function ProfileScreen() {
     } catch (error) {
       console.error('Error updating name:', error);
       alert('Failed to update name');
+    }
+  };
+
+  const handleUpdateBio = async () => {
+    try {
+      if (!user) return;
+      setIsEditingBio(false);
+      await updateUserProfile(user.uid, {
+        ...profile?.profile,
+        bio: newBio.trim()
+      });
+      await refetch();
+    } catch (error) {
+      console.error('Error updating bio:', error);
+      alert('Failed to update bio');
     }
   };
 
@@ -98,31 +115,64 @@ export default function ProfileScreen() {
         </View>
 
         <View style={styles.nameContainer}>
-          {isEditingName ? (
-            <PaperTextInput
-              value={newName}
-              onChangeText={setNewName}
-              style={[styles.nameInput, { backgroundColor: 'transparent' }]}
-              onBlur={handleUpdateName}
-              autoFocus
-            />
-          ) : (
-            <TouchableOpacity onPress={() => {
-              setNewName(profile?.profile?.name || '');
-              setIsEditingName(true);
-            }}>
-              <Text style={[styles.name, { color: theme.colors.onBackground }]}>
-                {profile?.profile?.name || 'Add name'}
-              </Text>
-            </TouchableOpacity>
-          )}
+          <View style={styles.editableField}>
+            {isEditingName ? (
+              <PaperTextInput
+                value={newName}
+                onChangeText={setNewName}
+                style={[styles.nameInput, { backgroundColor: 'transparent' }]}
+                onBlur={handleUpdateName}
+                autoFocus
+              />
+            ) : (
+              <TouchableOpacity 
+                style={styles.editableField}
+                onPress={() => {
+                  setNewName(profile?.profile?.name || '');
+                  setIsEditingName(true);
+                }}
+              >
+                <Text style={[styles.name, { color: theme.colors.onBackground }]}>
+                  {profile?.profile?.name || 'Add name'}
+                </Text>
+                <IconButton icon="pencil" size={16} />
+              </TouchableOpacity>
+            )}
+          </View>
           <Text style={[styles.usernameTag, { color: theme.colors.onBackground }]}>
             @{profile?.username}
           </Text>
         </View>
-        <Text style={[styles.bio, { color: theme.colors.onBackground }]}>
-          {profile?.profile?.bio || 'No bio yet'}
-        </Text>
+        <View style={styles.editableField}>
+          {isEditingBio ? (
+            <>
+              <PaperTextInput
+                value={newBio}
+                onChangeText={setNewBio}
+                style={[styles.bioInput, { backgroundColor: 'transparent' }]}
+                onBlur={handleUpdateBio}
+                autoFocus
+                multiline
+              />
+              <PaperButton onPress={handleUpdateBio} mode="contained" style={styles.doneButton}>
+                Done
+              </PaperButton>
+            </>
+          ) : (
+            <TouchableOpacity 
+              style={styles.editableField}
+              onPress={() => {
+                setNewBio(profile?.profile?.bio || '');
+                setIsEditingBio(true);
+              }}
+            >
+              <Text style={[styles.bio, { color: theme.colors.onBackground }]}>
+                {profile?.profile?.bio || 'Add bio'}
+              </Text>
+              <IconButton icon="pencil" size={16} />
+            </TouchableOpacity>
+          )}
+        </View>
 
         <View style={styles.statsContainer}>
           <View style={styles.statItem}>
@@ -256,5 +306,19 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 8,
     width: '80%',
+  },
+  editableField: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bioInput: {
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 20,
+    width: '80%',
+  },
+  doneButton: {
+    marginLeft: 8,
   },
 }); 
