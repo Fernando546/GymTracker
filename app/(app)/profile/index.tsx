@@ -125,18 +125,30 @@ export default function ProfileScreen() {
                 autoFocus
               />
             ) : (
-              <TouchableOpacity 
-                style={styles.editableField}
-                onPress={() => {
-                  setNewName(profile?.profile?.name || '');
-                  setIsEditingName(true);
-                }}
-              >
-                <Text style={[styles.name, { color: theme.colors.onBackground }]}>
-                  {profile?.profile?.name || 'Add name'}
-                </Text>
-                <IconButton icon="pencil" size={16} />
-              </TouchableOpacity>
+              <View style={[styles.editableField, { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }]}>
+                <IconButton icon="pencil" size={16} style={{ opacity: 0 }} />
+
+                <TouchableOpacity 
+                  onPress={() => {
+                    setNewName(profile?.profile?.name || '');
+                    setIsEditingName(true);
+                  }}
+                >
+                  <Text style={[styles.name, { color: theme.colors.onBackground, textAlign: 'center' }]}>
+                    {profile?.profile?.name || 'Add name'}
+                  </Text>
+                </TouchableOpacity>
+
+                <IconButton 
+                  icon="pencil" 
+                  size={16}
+                  onPress={() => {
+                    setNewName(profile?.profile?.name || '');
+                    setIsEditingName(true);
+                  }}
+                  style={{ marginLeft: 4 }}
+                />
+              </View>
             )}
           </View>
           <Text style={[styles.usernameTag, { color: theme.colors.onBackground }]}>
@@ -159,18 +171,30 @@ export default function ProfileScreen() {
               </PaperButton>
             </>
           ) : (
-            <TouchableOpacity 
-              style={styles.editableField}
-              onPress={() => {
-                setNewBio(profile?.profile?.bio || '');
-                setIsEditingBio(true);
-              }}
-            >
-              <Text style={[styles.bio, { color: theme.colors.onBackground }]}>
-                {profile?.profile?.bio || 'Add bio'}
-              </Text>
-              <IconButton icon="pencil" size={16} />
-            </TouchableOpacity>
+            <View style={[styles.editableField, { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }]}>
+              <IconButton icon="pencil" size={16} style={{ opacity: 0 }} />
+
+              <TouchableOpacity 
+                onPress={() => {
+                  setNewBio(profile?.profile?.bio || '');
+                  setIsEditingBio(true);
+                }}
+              >
+                <Text style={[styles.bio, { color: theme.colors.onBackground, textAlign: 'center' }]}>
+                  {profile?.profile?.bio || 'Add bio'}
+                </Text>
+              </TouchableOpacity>
+
+              <IconButton 
+                icon="pencil" 
+                size={16}
+                onPress={() => {
+                  setNewBio(profile?.profile?.bio || '');
+                  setIsEditingBio(true);
+                }}
+                style={{ marginLeft: 4, transform: [{ translateY: -2 }] }} 
+              />
+            </View>
           )}
         </View>
 
@@ -199,6 +223,15 @@ export default function ProfileScreen() {
               Achievements
             </Text>
           </View>
+        </View>
+        <View style={styles.followButtonContainer}>
+          <Button
+            mode="contained"
+            style={styles.followButton}
+            onPress={() => router.push('/(app)/profile/_search')}
+          >
+            Follow
+          </Button>
         </View>
       </View>
 
@@ -259,10 +292,12 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     marginBottom: 4,
+    textAlign: 'center',
   },
   usernameTag: {
     fontSize: 14,
     opacity: 0.7,
+    textAlign: 'center',
   },
   bio: {
     textAlign: 'center',
@@ -320,5 +355,12 @@ const styles = StyleSheet.create({
   },
   doneButton: {
     marginLeft: 8,
+  },
+  followButtonContainer: {
+    marginTop: 12,
+    alignItems: 'center',
+  },
+  followButton: {
+    width: '50%',
   },
 }); 
