@@ -26,8 +26,6 @@ export default function SearchScreen() {
     }
     setLoading(true);
     try {
-      // Query the 'users' collection based on "username" field.
-      // Adjust the field name according to your Firestore structure.
       const usersRef = collection(db, 'users');
       const q = query(
         usersRef,
@@ -39,7 +37,6 @@ export default function SearchScreen() {
       snapshot.forEach((doc) => {
         users.push({ uid: doc.id, ...doc.data() });
       });
-      // Filter out current user's account.
       if (user && user.uid) {
         users = users.filter((item) => item.uid !== user.uid);
       }
@@ -73,7 +70,11 @@ export default function SearchScreen() {
           renderItem={({ item }) => (
             <TouchableOpacity onPress={() => router.push(`/profile/${item.uid}`)}>
               <View style={styles.itemContainer}>
-                <Avatar.Icon icon="account" size={40} />
+                {item?.profile?.imageUrl ? (
+                  <Avatar.Image size={40} source={{ uri: item.profile.imageUrl }} />
+                ) : (
+                  <Avatar.Icon icon="account" size={40} />
+                )}
                 <Text style={[styles.username, { color: theme.colors.onBackground }]}>
                   {item.username}
                 </Text>

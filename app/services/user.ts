@@ -1,6 +1,5 @@
-import { db, storage } from '../config/firebase';
+import { db } from '../config/firebase';
 import { doc, getDoc, updateDoc, setDoc, deleteDoc } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import * as ImagePicker from 'expo-image-picker';
 import { uploadToCloudinary } from './imageUpload';
 
@@ -44,7 +43,6 @@ export async function uploadProfileImage(userId: string, uri: string) {
     // Upload to Cloudinary first
     const imageUrl = await uploadToCloudinary(uri);
     
-    // Then update the profile with the Cloudinary URL
     const userRef = doc(db, 'users', userId);
     await updateDoc(userRef, {
       'profile.imageUrl': imageUrl

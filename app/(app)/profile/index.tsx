@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
 import { Text, useTheme, Button, Card, Avatar, IconButton, TextInput as PaperTextInput, Button as PaperButton } from 'react-native-paper';
-import { router, useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { useUserProfile } from '../../hooks/useUserProfile';
 import { useAuth } from '../../context/AuthContext';
 import * as ImagePicker from 'expo-image-picker';
@@ -74,7 +74,6 @@ export default function ProfileScreen() {
     }
   };
 
-  // Re-fetch counts every time this screen is focused.
   useFocusEffect(
     React.useCallback(() => {
       async function fetchCounts() {

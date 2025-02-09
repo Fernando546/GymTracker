@@ -6,7 +6,6 @@ import { Platform } from 'react-native';
 import { AuthProvider } from './context/AuthContext';
 
 export default function Layout() {
-  // Merge navigation theme with Paper theme
   const { DarkTheme } = adaptNavigationTheme({
     reactNavigationDark: NavigationDarkTheme,
   });
@@ -30,13 +29,11 @@ export default function Layout() {
     colors: {
       ...MD3DarkTheme.colors,
       ...DarkTheme.colors,
-      // Custom colors
       primary: '#2196F3',
       background: '#121212',
       surface: '#1E1E1E',
       card: '#252525',
     },
-    // Override all text variants
     textVariants: {
       labelLarge: {
         fontWeight: 'medium',
