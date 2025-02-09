@@ -1,83 +1,181 @@
 import { Link } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 import { Button, Text, useTheme } from 'react-native-paper';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
+
+const customTheme = {
+  colors: {
+    primary: '#7C4DFF', // Our purple accent color
+    accent: '#7C4DFF',
+    background: '#080808',
+    surface: '#121212',
+    text: '#ffffff',
+    disabled: '#444444',
+    placeholder: '#888888',
+    backdrop: '#000000',
+  },
+};
 
 export default function Index() {
-  const theme = useTheme();
+  const accentColor = '#7C4DFF'; // Rich purple
+  const darkBackground = '#080808'; // Deeper black
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <LinearGradient
+      colors={[darkBackground, '#101010', '#181818']} // Darker gradient
+      style={styles.container}
+    >
+      {/* Enhanced decorative elements */}
+      <View style={[styles.circle, styles.circle1, { 
+        backgroundColor: '#7C4DFF20', 
+        width: 400, 
+        height: 400 
+      }]} />
+      <View style={[styles.circle, styles.circle2, { 
+        backgroundColor: '#7C4DFF15', 
+        width: 300, 
+        height: 300 
+      }]} />
+      <View style={[styles.circle, styles.circle3, { 
+        backgroundColor: '#7C4DFF10', 
+        width: 250, 
+        height: 250 
+      }]} />
+
       <View style={styles.content}>
-        <Text 
-          style={[styles.title, { color: theme.colors.onBackground }]}
-        >
-          Welcome to GymTracker
+        <Ionicons 
+          name="barbell" 
+          size={96} 
+          color={accentColor}
+          style={styles.logo} 
+        />
+        
+        <Text style={styles.title}>
+          Welcome to{'\n'}
+          <Text style={[ { color: accentColor, fontWeight: "bold" }]}>GymTracker</Text>
         </Text>
-        <Text 
-          style={[styles.subtitle, { color: theme.colors.onBackground }]}
-        >
-          Start your fitness journey today
+        
+        <Text style={styles.subtitle}>
+          Transform your fitness journey with{'\n'}personalized tracking & insights
         </Text>
       </View>
 
       <View style={styles.buttonContainer}>
         <Link href={'/login' as any} asChild>
-          <Button 
-            mode="contained" 
-            style={styles.button}
-            buttonColor={theme.colors.primary}
-          >
-            Login
-          </Button>
+        <Button 
+              mode="contained" 
+              style={[styles.button, { 
+                backgroundColor: accentColor,
+                shadowColor: accentColor,
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.3,
+                shadowRadius: 8,
+              }]}
+              labelStyle={[styles.buttonLabel, { color: '#fff' }]}
+              icon="login"
+              theme={customTheme} // Apply custom theme
+            >
+              Sign In
+            </Button>
         </Link>
 
-        <Text style={[styles.orText, { color: theme.colors.onBackground }]}>or</Text>
+        <View style={styles.separator}>
+          <View style={[styles.separatorLine, { backgroundColor: '#ffffff10' }]} />
+          <Text style={[styles.separatorText, { color: '#ffffff55' }]}>OR</Text>
+          <View style={[styles.separatorLine, { backgroundColor: '#ffffff10' }]} />
+        </View>
 
         <Link href={'/register' as any} asChild>
           <Button 
             mode="outlined" 
-            style={styles.button}
-            textColor={theme.colors.primary}
+            style={[styles.button, { 
+              borderColor: accentColor,
+              borderWidth: 2,
+            }]}
+            labelStyle={[styles.buttonLabel, { color: accentColor }]}
+            icon="account-plus"
           >
-            Register
+            Create Account
           </Button>
         </Link>
       </View>
-    </View>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
+    justifyContent: 'center',
+    paddingHorizontal: 24,
   },
   content: {
-    flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
+    marginBottom: 48,
+  },
+  logo: {
+    marginBottom: 32,
   },
   title: {
     fontSize: 32,
-    fontWeight: 'bold',
+    fontWeight: '800',
     textAlign: 'center',
-    marginBottom: 10,
+    color: '#fff',
+    lineHeight: 40,
+    marginBottom: 16,
+    letterSpacing: 0.8,
   },
   subtitle: {
-    fontSize: 18,
+    fontSize: 16,
     textAlign: 'center',
-    opacity: 0.8,
+    color: '#999999',
+    lineHeight: 24,
+    marginBottom: 8,
   },
   buttonContainer: {
-    gap: 16,
-    marginBottom: 32,
+    gap: 24,
+    width: '100%',
   },
   button: {
-    paddingVertical: 8,
+    borderRadius: 14,
+    paddingVertical: 14,
+    elevation: 6,
   },
-  orText: {
-    textAlign: 'center',
+  buttonLabel: {
     fontSize: 16,
-    opacity: 0.7,
+    fontWeight: '800',
+    letterSpacing: 0.8,
   },
-}); 
+  separator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginVertical: 12,
+  },
+  separatorLine: {
+    flex: 1,
+    height: 1,
+  },
+  separatorText: {
+    fontWeight: '700',
+    fontSize: 12,
+  },
+  circle: {
+    position: 'absolute',
+    borderRadius: 500,
+    opacity: 0.4,
+  },
+  circle1: {
+    top: -150,
+    left: -150,
+  },
+  circle2: {
+    bottom: -100,
+    right: -100,
+  },
+  circle3: {
+    top: '30%',
+    left: '60%',
+  },
+});
