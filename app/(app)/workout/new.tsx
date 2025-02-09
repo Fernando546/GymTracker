@@ -1,10 +1,50 @@
-import React from 'react';
-import { View, StyleSheet, ScrollView } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, StyleSheet, ScrollView, TextInput } from 'react-native';
 import { Text, useTheme, Button, Card, IconButton } from 'react-native-paper';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
+
+type WorkoutExercise = {
+  id: string;
+  name: string;
+  type: 'strength' | 'cardio' | 'bodyweight';
+  weight?: string;
+  reps?: string;
+  sets?: string;
+  time?: string;
+  distance?: string;
+};
 
 export default function NewWorkoutScreen() {
   const theme = useTheme();
+  const params = useLocalSearchParams<{
+    selectedExercises?: string;
+  }>();
+  const [exercises, setExercises] = useState<WorkoutExercise[]>([]);
+
+  useEffect(() => {
+    const handleExercises = () => {
+      try {
+        // Check if param exists and is valid JSON string
+        if (params.selectedExercises && params.selectedExercises.startsWith('[')) {
+          const parsedExercises = JSON.parse(params.selectedExercises);
+          
+          setExercises(prev => {
+            const newExercises = parsedExercises.filter((newEx: WorkoutExercise) => 
+              !prev.some(ex => ex.id === newEx.id)
+            );
+            return [...prev, ...newExercises];
+          });
+  
+          // Clear params using setParams with empty string
+          router.setParams({ selectedExercises: '' });
+        }
+      } catch (error) {
+        console.error('Error parsing exercises:', error);
+      }
+    };
+  
+    handleExercises();
+  }, [params.selectedExercises]);
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
@@ -23,6 +63,7 @@ export default function NewWorkoutScreen() {
           size={24} 
           onPress={() => {
             // Save workout logic here
+            console.log('Workout saved:', exercises);
             router.back();
           }}
           iconColor={theme.colors.primary}
@@ -30,18 +71,77 @@ export default function NewWorkoutScreen() {
       </View>
 
       <ScrollView style={styles.content}>
+        {exercises.length === 0 ? (
+          <Text style={[styles.emptyText, { color: theme.colors.onBackground }]}>
+            No exercises added yet
+          </Text>
+        ) : (
+          exercises.map(ex => (
+            <Card key={ex.id} style={styles.exerciseCard}>
+              <Text style={{ marginBottom: 4, fontWeight: 'bold' }}>{ex.name}</Text>
+              {ex.type === 'cardio' ? (
+                <View style={styles.row}>
+                  <TextInput 
+                    style={styles.input}
+                    placeholder="Time (min)"
+                    value={ex.time}
+                    onChangeText={(text) =>
+                      setExercises(prev => prev.map(e => e.id === ex.id ? { ...e, time: text } : e))
+                    }
+                  />
+                  <TextInput 
+                    style={styles.input}
+                    placeholder="Distance (km)"
+                    value={ex.distance}
+                    onChangeText={(text) =>
+                      setExercises(prev => prev.map(e => e.id === ex.id ? { ...e, distance: text } : e))
+                    }
+                  />
+                </View>
+              ) : (
+                <View style={styles.row}>
+                  {ex.type !== 'bodyweight' && (
+                    <TextInput 
+                      style={styles.input}
+                      placeholder="Weight (kg)"
+                      value={ex.weight}
+                      onChangeText={(text) =>
+                        setExercises(prev => prev.map(e => e.id === ex.id ? { ...e, weight: text } : e))
+                      }
+                    />
+                  )}
+                  <TextInput 
+                    style={styles.input}
+                    placeholder="Reps"
+                    value={ex.reps}
+                    onChangeText={(text) =>
+                      setExercises(prev => prev.map(e => e.id === ex.id ? { ...e, reps: text } : e))
+                    }
+                  />
+                  <TextInput 
+                    style={styles.input}
+                    placeholder="Sets"
+                    value={ex.sets}
+                    onChangeText={(text) =>
+                      setExercises(prev => prev.map(e => e.id === ex.id ? { ...e, sets: text } : e))
+                    }
+                  />
+                </View>
+              )}
+            </Card>
+          ))
+        )}
         <Button 
           mode="contained"
-          onPress={() => {/* Add exercise logic */}}
+          onPress={() => router.push({
+            pathname: '/(app)/workout/exerciseSearch',
+            params: { currentExercises: JSON.stringify(exercises) }
+          })}
           style={styles.addButton}
           icon="plus"
         >
           Add Exercise
         </Button>
-
-        <Text style={[styles.emptyText, { color: theme.colors.onBackground }]}>
-          No exercises added yet
-        </Text>
       </ScrollView>
     </View>
   );
@@ -74,5 +174,22 @@ const styles = StyleSheet.create({
   emptyText: {
     textAlign: 'center',
     opacity: 0.7,
+  },
+  exerciseCard: {
+    marginVertical: 8,
+    padding: 8,
+  },
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 8,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 4,
+    padding: 4,
+    width: '30%',
+    textAlign: 'center',
   },
 }); 
