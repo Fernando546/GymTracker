@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, TextInput, BackHandler, Alert } from 'react-native';
 import { Text, useTheme, Button, Card, IconButton } from 'react-native-paper';
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
+import { collection, addDoc } from 'firebase/firestore';
+import { db } from '../../config/firebase';
+import { getAuth } from 'firebase/auth';
 
 type WorkoutExercise = {
   id: string;
@@ -21,14 +24,31 @@ export default function NewWorkoutScreen() {
   }>();
   const [exercises, setExercises] = useState<WorkoutExercise[]>([]);
 
-  // Add date to workout
-  const handleSaveWorkout = () => {
+  // Save workout to Firestore
+  const handleSaveWorkout = async () => {
+    if (exercises.length === 0) {
+      Alert.alert("No exercises", "Please add at least one exercise.");
+      return;
+    }
+
+    const auth = getAuth();
     const workoutData = {
       exercises,
-      date: new Date().toLocaleString(),
+      date: new Date().toISOString(),
+      userId: auth.currentUser?.uid, // Actual user uid from Firebase Auth
     };
-    console.log('Workout saved:', workoutData);
-    router.replace('/(app)/workout');
+
+    try {
+      await addDoc(
+        collection(db, "users", auth.currentUser?.uid as string, "workouts"),
+        workoutData
+      );
+      console.log("Workout saved:", workoutData);
+      router.replace('/(app)/workout');
+    } catch (err) {
+      console.error("Error saving workout", err);
+      Alert.alert("Error", "Failed to save workout");
+    }
   };
 
   // Confirm exit dialog
