@@ -39,7 +39,6 @@ export default function ExerciseSearch() {
       pathname: '/(app)/workout/new',
       params: { 
         selectedExercises: JSON.stringify(updatedExercises),
-        // Add cache busting parameter
         refreshKey: Date.now().toString()
       },
     });
@@ -70,7 +69,11 @@ export default function ExerciseSearch() {
           <Text style={styles.emptyText}>No exercises found.</Text>
         }
       />
-      <Button mode="contained" onPress={() => router.back()} style={styles.backButton}>
+      <Button 
+        mode="contained" 
+        onPress={() => router.replace('/(app)/workout/new')}
+        style={styles.backButton}
+      >
         Cancel
       </Button>
     </View>

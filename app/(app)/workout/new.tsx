@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, TextInput } from 'react-native';
+import { View, StyleSheet, ScrollView, TextInput, BackHandler, Alert } from 'react-native';
 import { Text, useTheme, Button, Card, IconButton } from 'react-native-paper';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 
 type WorkoutExercise = {
   id: string;
@@ -21,10 +21,43 @@ export default function NewWorkoutScreen() {
   }>();
   const [exercises, setExercises] = useState<WorkoutExercise[]>([]);
 
+  // Add date to workout
+  const handleSaveWorkout = () => {
+    const workoutData = {
+      exercises,
+      date: new Date().toLocaleString(),
+    };
+    console.log('Workout saved:', workoutData);
+    router.replace('/(app)/workout');
+  };
+
+  // Confirm exit dialog
+  const confirmExit = () => {
+    Alert.alert(
+      'Discard Workout?',
+      'Are you sure you want to exit without saving?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Discard', onPress: () => router.replace('/(app)/workout') },
+      ]
+    );
+  };
+
+  useFocusEffect(
+    React.useCallback(() => {
+      const onBackPress = () => {
+        confirmExit();
+        return true;
+      };
+
+      BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      return () => BackHandler.removeEventListener('hardwareBackPress', onBackPress);
+    }, [])
+  );
+
   useEffect(() => {
     const handleExercises = () => {
       try {
-        // Check if param exists and is valid JSON string
         if (params.selectedExercises && params.selectedExercises.startsWith('[')) {
           const parsedExercises = JSON.parse(params.selectedExercises);
           
@@ -34,8 +67,7 @@ export default function NewWorkoutScreen() {
             );
             return [...prev, ...newExercises];
           });
-  
-          // Clear params using setParams with empty string
+
           router.setParams({ selectedExercises: '' });
         }
       } catch (error) {
@@ -48,11 +80,11 @@ export default function NewWorkoutScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <View style={styles.header}>
+     <View style={styles.header}>
         <IconButton 
           icon="close" 
           size={24} 
-          onPress={() => router.back()}
+          onPress={confirmExit}
           iconColor={theme.colors.onBackground}
         />
         <Text style={[styles.title, { color: theme.colors.onBackground }]}>
@@ -61,11 +93,7 @@ export default function NewWorkoutScreen() {
         <IconButton 
           icon="check" 
           size={24} 
-          onPress={() => {
-            // Save workout logic here
-            console.log('Workout saved:', exercises);
-            router.back();
-          }}
+          onPress={handleSaveWorkout}
           iconColor={theme.colors.primary}
         />
       </View>
