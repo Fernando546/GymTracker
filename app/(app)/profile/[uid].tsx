@@ -1,19 +1,26 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Image, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, ScrollView, Image, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { Text, useTheme, Button, Avatar } from 'react-native-paper';
-import { useLocalSearchParams } from 'expo-router';
-import { doc, getDoc } from 'firebase/firestore';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { doc, getDoc, collection, getCountFromServer } from 'firebase/firestore';
 import { db } from '../../config/firebase';
+import { useAuth } from '../../context/AuthContext';
+import { followUser, unfollowUser } from '../../services/user';
 
 export default function UserProfileScreen() {
   const theme = useTheme();
-  const { uid } = useLocalSearchParams<{ uid: string }>(); // get uid from route
+  const { uid } = useLocalSearchParams<{ uid: string }>();
+  const router = useRouter();
+  const { user } = useAuth();
   const [userData, setUserData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>('');
+  const [followersCount, setFollowersCount] = useState<number>(0);
+  const [followingCount, setFollowingCount] = useState<number>(0);
+  const [isFollowed, setIsFollowed] = useState(false);
 
   useEffect(() => {
-    const fetchUserProfile = async () => {
+    async function fetchUserProfile() {
       if (!uid) return;
       try {
         const docRef = doc(db, 'users', uid);
@@ -29,10 +36,37 @@ export default function UserProfileScreen() {
       } finally {
         setLoading(false);
       }
-    };
-
+    }
     fetchUserProfile();
   }, [uid]);
+
+  // Fetch counts from subcollections every time uid changes.
+  useEffect(() => {
+    async function fetchCounts() {
+      if (!uid) return;
+      try {
+        const followersSnap = await getCountFromServer(collection(db, 'users', uid, 'followers'));
+        setFollowersCount(followersSnap.data().count);
+
+        const followingSnap = await getCountFromServer(collection(db, 'users', uid, 'following'));
+        setFollowingCount(followingSnap.data().count);
+      } catch (error) {
+        console.error("Failed to fetch counts: ", error);
+      }
+    }
+    fetchCounts();
+  }, [uid]);
+
+  // Check if current user follows target user.
+  useEffect(() => {
+    async function checkFollow() {
+      if (!user || !uid) return;
+      const followRef = doc(db, 'users', uid, 'followers', user.uid);
+      const snap = await getDoc(followRef);
+      setIsFollowed(snap.exists());
+    }
+    checkFollow();
+  }, [user, uid]);
 
   if (loading) {
     return (
@@ -45,7 +79,7 @@ export default function UserProfileScreen() {
   if (error || !userData) {
     return (
       <View style={styles.containerCentered}>
-        <Text>{error || 'Error loading profile'}</Text>
+        <Text>{error || "Error loading profile"}</Text>
       </View>
     );
   }
@@ -84,22 +118,36 @@ export default function UserProfileScreen() {
         </Text>
 
         <View style={styles.statsContainer}>
-          <View style={styles.statItem}>
-            <Text style={[styles.statNumber, { color: theme.colors.primary }]}>
-              {profile?.followers ?? 0}
-            </Text>
-            <Text style={[styles.statLabel, { color: theme.colors.onBackground }]}>
-              Followers
-            </Text>
-          </View>
-          <View style={styles.statItem}>
-            <Text style={[styles.statNumber, { color: theme.colors.primary }]}>
-              {profile?.following ?? 0}
-            </Text>
-            <Text style={[styles.statLabel, { color: theme.colors.onBackground }]}>
-              Following
-            </Text>
-          </View>
+          <TouchableOpacity
+            onPress={() => {
+              console.log("Pressed Followers: uid =", uid);
+              router.push(`/profile/followers?uid=${uid}`);
+            }}
+          >
+            <View style={styles.statItem}>
+              <Text style={[styles.statNumber, { color: theme.colors.primary }]}>
+                {followersCount}
+              </Text>
+              <Text style={[styles.statLabel, { color: theme.colors.onBackground }]}>
+                Followers
+              </Text>
+            </View>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => {
+              console.log("Pressed Following: uid =", uid);
+              router.push(`/profile/following?uid=${uid}`);
+            }}
+          >
+            <View style={styles.statItem}>
+              <Text style={[styles.statNumber, { color: theme.colors.primary }]}>
+                {followingCount}
+              </Text>
+              <Text style={[styles.statLabel, { color: theme.colors.onBackground }]}>
+                Following
+              </Text>
+            </View>
+          </TouchableOpacity>
           <View style={styles.statItem}>
             <Text style={[styles.statNumber, { color: theme.colors.primary }]}>
               {profile?.achievements ?? 0}
@@ -110,18 +158,46 @@ export default function UserProfileScreen() {
           </View>
         </View>
 
-        <View style={styles.followButtonContainer}>
-          <Button
-            mode="contained"
-            style={styles.followButton}
-            onPress={() => {
-              // You can add follow functionality here.
-              alert("Follow button pressed");
-            }}
-          >
-            Follow
-          </Button>
-        </View>
+        {user?.uid === uid ? (
+          <View style={styles.followButtonContainer}>
+            <Button
+              mode="contained"
+              style={styles.followButton}
+              onPress={() => {
+                alert("Find User button pressed");
+              }}
+            >
+              Find User
+            </Button>
+          </View>
+        ) : (
+          <View style={styles.followButtonContainer}>
+            <Button
+              mode="contained"
+              style={styles.followButton}
+              onPress={async () => {
+                try {
+                  if (isFollowed) {
+                    // Unfollow the user if already followed.
+                    await unfollowUser(user.uid, uid);
+                    setIsFollowed(false);
+                    setFollowersCount((prev) => Math.max(prev - 1, 0));
+                  } else {
+                    // Follow the user if not followed.
+                    await followUser(user.uid, uid);
+                    setIsFollowed(true);
+                    setFollowersCount((prev) => prev + 1);
+                  }
+                } catch (error) {
+                  console.error("Failed to update follow status:", error);
+                  alert("Failed to update follow status");
+                }
+              }}
+            >
+              {isFollowed ? "Followed" : "Follow"}
+            </Button>
+          </View>
+        )}
       </View>
     </ScrollView>
   );

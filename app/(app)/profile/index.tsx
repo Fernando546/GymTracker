@@ -1,21 +1,26 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
 import { Text, useTheme, Button, Card, Avatar, IconButton, TextInput as PaperTextInput, Button as PaperButton } from 'react-native-paper';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { useUserProfile } from '../../hooks/useUserProfile';
 import { useAuth } from '../../context/AuthContext';
 import * as ImagePicker from 'expo-image-picker';
 import { pickImage, uploadProfileImage, updateUserProfile } from '../../services/user';
+import { collection, getCountFromServer } from 'firebase/firestore';
+import { db } from '../../config/firebase';
 
 export default function ProfileScreen() {
   const theme = useTheme();
   const { profile, loading, error, refetch } = useUserProfile();
   const { signOut, user } = useAuth();
+  const router = useRouter();
   const [isUploading, setIsUploading] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
   const [newName, setNewName] = useState(profile?.profile?.name || '');
   const [isEditingBio, setIsEditingBio] = useState(false);
   const [newBio, setNewBio] = useState(profile?.profile?.bio || '');
+  const [followersCount, setFollowersCount] = useState<number>(0);
+  const [followingCount, setFollowingCount] = useState<number>(0);
 
   const handleImagePick = async () => {
     try {
@@ -68,6 +73,25 @@ export default function ProfileScreen() {
       alert('Failed to update bio');
     }
   };
+
+  // Re-fetch counts every time this screen is focused.
+  useFocusEffect(
+    React.useCallback(() => {
+      async function fetchCounts() {
+        if (!user?.uid) return;
+        try {
+          const followersSnap = await getCountFromServer(collection(db, 'users', user.uid, 'followers'));
+          setFollowersCount(followersSnap.data().count);
+
+          const followingSnap = await getCountFromServer(collection(db, 'users', user.uid, 'following'));
+          setFollowingCount(followingSnap.data().count);
+        } catch (error) {
+          console.error("Failed to fetch counts:", error);
+        }
+      }
+      fetchCounts();
+    }, [user])
+  );
 
   if (loading) {
     return (
@@ -199,22 +223,26 @@ export default function ProfileScreen() {
         </View>
 
         <View style={styles.statsContainer}>
-          <View style={styles.statItem}>
-            <Text style={[styles.statNumber, { color: theme.colors.primary }]}>
-              {profile?.profile?.followers ?? 0}
-            </Text>
-            <Text style={[styles.statLabel, { color: theme.colors.onBackground }]}>
-              Followers
-            </Text>
-          </View>
-          <View style={styles.statItem}>
-            <Text style={[styles.statNumber, { color: theme.colors.primary }]}>
-              {profile?.profile?.following ?? 0}
-            </Text>
-            <Text style={[styles.statLabel, { color: theme.colors.onBackground }]}>
-              Following
-            </Text>
-          </View>
+          <TouchableOpacity onPress={() => router.push(`/profile/followers?uid=${user?.uid}`)}>
+            <View style={styles.statItem}>
+              <Text style={[styles.statNumber, { color: theme.colors.primary }]}>
+                {followersCount}
+              </Text>
+              <Text style={[styles.statLabel, { color: theme.colors.onBackground }]}>
+                Followers
+              </Text>
+            </View>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => router.push(`/profile/following?uid=${user?.uid}`)}>
+            <View style={styles.statItem}>
+              <Text style={[styles.statNumber, { color: theme.colors.primary }]}>
+                {followingCount}
+              </Text>
+              <Text style={[styles.statLabel, { color: theme.colors.onBackground }]}>
+                Following
+              </Text>
+            </View>
+          </TouchableOpacity>
           <View style={styles.statItem}>
             <Text style={[styles.statNumber, { color: theme.colors.primary }]}>
               {profile?.profile?.achievements ?? 0}

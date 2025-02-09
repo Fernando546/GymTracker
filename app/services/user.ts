@@ -1,5 +1,5 @@
 import { db, storage } from '../config/firebase';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, setDoc, deleteDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import * as ImagePicker from 'expo-image-picker';
 import { uploadToCloudinary } from './imageUpload';
@@ -55,4 +55,32 @@ export async function uploadProfileImage(userId: string, uri: string) {
     console.error('Error updating profile image:', error);
     throw error;
   }
-} 
+}
+
+export const followUser = async (currentUserId: string, targetUserId: string) => {
+  const followerDocRef = doc(db, 'users', targetUserId, 'followers', currentUserId);
+  const followingDocRef = doc(db, 'users', currentUserId, 'following', targetUserId);
+
+  // Check if follow relationship already exists.
+  const followerDocSnap = await getDoc(followerDocRef);
+  if (followerDocSnap.exists()) {
+    return; // Already following—do nothing.
+  }
+
+  // Create follow relationship.
+  await setDoc(followerDocRef, {
+    uid: currentUserId,
+    timestamp: Date.now()
+  });
+  await setDoc(followingDocRef, {
+    uid: targetUserId,
+    timestamp: Date.now()
+  });
+};
+
+export const unfollowUser = async (currentUserId: string, targetUserId: string) => {
+  const followerDocRef = doc(db, 'users', targetUserId, 'followers', currentUserId);
+  const followingDocRef = doc(db, 'users', currentUserId, 'following', targetUserId);
+  await deleteDoc(followerDocRef);
+  await deleteDoc(followingDocRef);
+}; 
