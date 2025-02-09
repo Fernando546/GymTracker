@@ -3,6 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import { Button, Text, TextInput, useTheme } from 'react-native-paper';
 import { useState } from 'react';
 import { useAuth } from './context/AuthContext';
+import { LinearGradient } from 'expo-linear-gradient';
 
 export default function Register() {
   const theme = useTheme();
@@ -13,6 +14,8 @@ export default function Register() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const accentColor = '#7C4DFF';
+  const darkBackground = '#080808';
 
   const validateEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -64,26 +67,35 @@ export default function Register() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <Text style={styles.title}>Create Account</Text>
-      {error ? <Text style={[styles.error, { color: theme.colors.error }]}>{error}</Text> : null}
+    <LinearGradient
+      colors={[darkBackground, '#101010', '#181818']}
+      style={styles.container}
+    >
+      <Text style={[styles.title, { color: '#fff' }]}>Create Account</Text>
+      {error && <Text style={[styles.error, { color: accentColor }]}>{error}</Text>}
+      
       <View style={styles.form}>
         <TextInput
           label="Email"
           value={email}
           onChangeText={setEmail}
           mode="outlined"
-          keyboardType="email-address"
-          autoCapitalize="none"
-          disabled={loading}
+          theme={{ colors: { primary: accentColor } }}
+          style={styles.input}
+          textColor="#fff"
+          outlineColor="#333"
+          activeOutlineColor={accentColor}
         />
         <TextInput
           label="Username"
           value={username}
           onChangeText={setUsername}
           mode="outlined"
-          autoCapitalize="none"
-          disabled={loading}
+          theme={{ colors: { primary: accentColor } }}
+          style={styles.input}
+          textColor="#fff"
+          outlineColor="#333"
+          activeOutlineColor={accentColor}
         />
         <TextInput
           label="Password"
@@ -91,7 +103,11 @@ export default function Register() {
           onChangeText={setPassword}
           mode="outlined"
           secureTextEntry
-          disabled={loading}
+          theme={{ colors: { primary: accentColor } }}
+          style={styles.input}
+          textColor="#fff"
+          outlineColor="#333"
+          activeOutlineColor={accentColor}
         />
         <TextInput
           label="Confirm Password"
@@ -99,52 +115,81 @@ export default function Register() {
           onChangeText={setConfirmPassword}
           mode="outlined"
           secureTextEntry
-          disabled={loading}
+          theme={{ colors: { primary: accentColor } }}
+          style={styles.input}
+          textColor="#fff"
+          outlineColor="#333"
+          activeOutlineColor={accentColor}
         />
         <Button 
           mode="contained"
           onPress={handleRegister}
-          style={styles.button}
+          style={[styles.button, { backgroundColor: accentColor }]}
+          labelStyle={styles.buttonLabel}
           loading={loading}
-          disabled={loading}
         >
-          Register
+          Sign Up
         </Button>
       </View>
+      
       <View style={styles.footer}>
-        <Text>Already have an account? </Text>
+        <Text style={{ color: '#888' }}>Already have an account? </Text>
         <Link href="/login" asChild>
-          <Button mode="text">Login</Button>
+          <Button 
+            mode="text" 
+            textColor={accentColor}
+            labelStyle={{ fontWeight: '600' }}
+          >
+            Sign In
+          </Button>
         </Link>
       </View>
-    </View>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
+    padding: 24,
+    justifyContent: 'center', 
+    alignItems: 'center', 
   },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 20,
+    fontSize: 32,
+    fontWeight: '800',
+    marginBottom: 24,
+    textAlign: 'center',
+    color: '#fff',
   },
   form: {
-    gap: 12,
+    gap: 16,
+    maxWidth: 400, // Ograniczenie szerokości formularza
+    width: '100%',
+  },
+  input: {
+    backgroundColor: '#ffffff10',
   },
   button: {
-    marginTop: 8,
+    borderRadius: 12,
+    paddingVertical: 6,
+    marginTop: 16,
+  },
+  buttonLabel: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#fff',
   },
   footer: {
-    marginTop: 'auto',
+    position: 'absolute',
+    bottom: 24,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
   },
   error: {
-    marginBottom: 12,
+    marginBottom: 16,
     textAlign: 'center',
+    fontWeight: '600',
   },
-}); 
+});
