@@ -21,6 +21,17 @@ export default function ProfileScreen() {
   const [newBio, setNewBio] = useState(profile?.profile?.bio || '');
   const [followersCount, setFollowersCount] = useState<number>(0);
   const [followingCount, setFollowingCount] = useState<number>(0);
+  const [showAllAchievements, setShowAllAchievements] = useState(false);
+  const achievements = [
+    { id: '1', name: '30 Day Streak', image: 'https://via.placeholder.com/50?text=30d', achieved: true },
+    { id: '2', name: '100 Workouts', image: 'https://via.placeholder.com/50?text=100w', achieved: false },
+    { id: '3', name: 'First PR', image: 'https://via.placeholder.com/50?text=PR', achieved: true },
+    { id: '4', name: '5K Run', image: 'https://via.placeholder.com/50?text=5K', achieved: false }
+  ];
+  const sortedAchievements = [...achievements].sort((a, b) =>
+    a.achieved === b.achieved ? 0 : a.achieved ? -1 : 1
+  );
+  const achievementsToShow = showAllAchievements ? sortedAchievements : sortedAchievements.slice(0, 3);
 
   const handleImagePick = async () => {
     try {
@@ -265,20 +276,38 @@ export default function ProfileScreen() {
         </View>
       </View>
 
-      <Card style={[styles.section, { backgroundColor: theme.colors.elevation.level2 }]}>
-        <Card.Content>
-          <Text style={[styles.sectionTitle, { color: theme.colors.onBackground }]}>
-            Recent Achievements
-          </Text>
-          {/* Add achievements list here */}
-          <Text style={{ color: theme.colors.onBackground }}>
-            🏆 30 Day Streak
-          </Text>
-          <Text style={{ color: theme.colors.onBackground }}>
-            💪 100 Workouts Completed
-          </Text>
-        </Card.Content>
-      </Card>
+      <View style={[styles.achievementsContainer, { backgroundColor: theme.colors.elevation.level2 }]}>
+        <Text style={[styles.sectionTitle, { color: theme.colors.onBackground }]}>
+          Achievements
+        </Text>
+        <View style={styles.achievementsGrid}>
+          {achievementsToShow.map(item => (
+            <View key={item.id} style={styles.achievementItem}>
+              <Image
+                source={{ uri: item.image }}
+                style={[
+                  styles.achievementImage,
+                  !item.achieved && styles.unachievedImage
+                ]}
+              />
+              <Text
+                style={[
+                  styles.achievementName,
+                  { color: theme.colors.onBackground },
+                  !item.achieved && { opacity: 0.5 }
+                ]}
+              >
+                {item.name}
+              </Text>
+            </View>
+          ))}
+        </View>
+        {achievements.length > 3 && (
+          <Button mode="text" onPress={() => setShowAllAchievements(!showAllAchievements)}>
+            {showAllAchievements ? 'Show Less' : 'Show More'}
+          </Button>
+        )}
+      </View>
 
       <Button 
         mode="outlined"
@@ -397,5 +426,33 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  achievementsContainer: {
+    margin: 20,
+    padding: 12,
+    borderRadius: 8,
+  },
+  achievementsGrid: {
+    marginTop: 8,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'flex-start',
+  },
+  achievementItem: {
+    width: '33.33%',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  achievementImage: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+  },
+  unachievedImage: {
+    opacity: 0.5,
+  },
+  achievementName: {
+    marginTop: 4,
+    fontSize: 12,
   },
 }); 
