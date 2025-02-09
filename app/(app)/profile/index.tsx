@@ -94,8 +94,11 @@ export default function ProfileScreen() {
 
   if (loading) {
     return (
-      <View style={styles.container}>
-        <Text>Loading...</Text>
+      <View style={[styles.loadingContainer, { backgroundColor: theme.colors.background }]}>
+        <ActivityIndicator animating={true} size="large" color={theme.colors.primary} />
+        <Text style={{ marginTop: 16, fontSize: 16, color: theme.colors.onBackground }}>
+          Loading Profile...
+        </Text>
       </View>
     );
   }
@@ -389,5 +392,10 @@ const styles = StyleSheet.create({
   },
   followButton: {
     width: '50%',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 }); 
