@@ -230,7 +230,7 @@ export default function ProfileScreen() {
             style={styles.followButton}
             onPress={() => router.push('/(app)/profile/_search')}
           >
-            Follow
+            Find User
           </Button>
         </View>
       </View>
