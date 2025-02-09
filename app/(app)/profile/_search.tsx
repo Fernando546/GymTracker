@@ -1,107 +1,92 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   StyleSheet,
   FlatList,
   TouchableOpacity
 } from 'react-native';
-import { TextInput, Text, List, useTheme } from 'react-native-paper';
+import { TextInput, Text, Avatar, useTheme } from 'react-native-paper';
 import { useRouter } from 'expo-router';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../../config/firebase';
-
-type User = {
-  uid: string;
-  username: string;
-  profile: {
-    name: string;
-    imageUrl?: string;
-  };
-};
+import { useAuth } from '../../context/AuthContext';
 
 export default function SearchScreen() {
   const theme = useTheme();
   const router = useRouter();
-
-  const [searchTerm, setSearchTerm] = useState('');
-  const [results, setResults] = useState<User[]>([]);
+  const { user } = useAuth();
+  const [searchText, setSearchText] = useState('');
+  const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const handleSearch = async () => {
-    if (!searchTerm.trim()) {
+  const fetchUsers = async () => {
+    if (!searchText.trim()) {
       setResults([]);
-      console.log('Puste zapytanie');
       return;
     }
-    
     setLoading(true);
-    console.log('Szukam użytkownika:', searchTerm.toLowerCase().trim());
-  
     try {
+      // Query the 'users' collection based on "username" field.
+      // Adjust the field name according to your Firestore structure.
       const usersRef = collection(db, 'users');
-      const q = query(usersRef, where('username', '>=', searchTerm.trim()), where('username', '<=', searchTerm.trim() + '\uf8ff'));
-      const querySnapshot = await getDocs(q);
-      
-      console.log('Liczba wyników:', querySnapshot.size);
-  
-      if (querySnapshot.empty) {
-        console.log('Brak użytkowników o podanym username');
-        setResults([]);
-        return;
-      }
-  
-      const userList: User[] = [];
-      querySnapshot.forEach((doc) => {
-        const userData = doc.data();
-        console.log('Znaleziony dokument:', userData);
-        
-        if (!userData.username) {
-          console.error('Dokument bez username:', doc.id);
-          return;
-        }
-  
-        userList.push({ uid: doc.id, ...userData } as User);
+      const q = query(
+        usersRef,
+        where('username', '>=', searchText),
+        where('username', '<=', searchText + '\uf8ff')
+      );
+      const snapshot = await getDocs(q);
+      let users: any[] = [];
+      snapshot.forEach((doc) => {
+        users.push({ uid: doc.id, ...doc.data() });
       });
-  
-      setResults(userList);
+      // Filter out current user's account.
+      if (user && user.uid) {
+        users = users.filter((item) => item.uid !== user.uid);
+      }
+      setResults(users);
     } catch (error) {
-      console.error('Błąd podczas wyszukiwania użytkowników:', error);
+      console.error("Error fetching users", error);
     } finally {
       setLoading(false);
     }
   };
-  
 
-  const renderItem = ({ item }: { item: User }) => (
-    <TouchableOpacity
-      style={styles.item}
-      onPress={() => router.push(`/profile/${item.uid}`)}
-    >
-      <List.Item
-        title={item.profile.name || item.username}
-        description={`@${item.username}`}
-        left={(props) => <List.Icon {...props} icon="account" />}
-      />
-    </TouchableOpacity>
-  );
+  useEffect(() => {
+    fetchUsers();
+  }, [searchText]);
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <TextInput
-        placeholder="Search users by username"
-        value={searchTerm}
-        onChangeText={setSearchTerm}
-        onSubmitEditing={handleSearch}
-        style={styles.input}
+        style={[styles.searchInput, { backgroundColor: theme.colors.surface }]}
+        placeholder="Search users..."
+        placeholderTextColor={theme.colors.onSurfaceVariant}
+        value={searchText}
+        onChangeText={setSearchText}
       />
-      <FlatList
-        data={results}
-        keyExtractor={(item) => item.uid}
-        renderItem={renderItem}
-        ListEmptyComponent={
-          !loading && searchTerm ? <Text style={styles.empty}>No users found</Text> : null
-        }
-      />
+      {loading ? (
+        <Text style={{ textAlign: 'center', marginTop: 16 }}>Loading...</Text>
+      ) : (
+        <FlatList
+          data={results}
+          keyExtractor={(item) => item.uid}
+          renderItem={({ item }) => (
+            <TouchableOpacity onPress={() => router.push(`/profile/${item.uid}`)}>
+              <View style={styles.itemContainer}>
+                <Avatar.Icon icon="account" size={40} />
+                <Text style={[styles.username, { color: theme.colors.onBackground }]}>
+                  {item.username}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          )}
+          ListEmptyComponent={
+            <Text style={[styles.emptyText, { color: theme.colors.onBackground }]}>
+              No users found.
+            </Text>
+          }
+        />
+      )}
     </View>
   );
 }
@@ -111,14 +96,26 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 16,
   },
-  input: {
-    marginBottom: 12,
+  searchInput: {
+    padding: 8,
+    borderRadius: 4,
+    fontSize: 16,
+    marginBottom: 16,
   },
-  item: {
-    marginBottom: 8,
+  itemContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ccc',
   },
-  empty: {
+  username: {
+    marginLeft: 12,
+    fontSize: 18,
+  },
+  emptyText: {
     textAlign: 'center',
     marginTop: 20,
+    fontSize: 16,
   },
 }); 
