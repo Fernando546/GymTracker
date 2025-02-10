@@ -10,26 +10,33 @@ function calculateStreak(workouts: { date: string }[]): number {
   const dayMs = 24 * 60 * 60 * 1000;
   const datesSet = new Set<number>();
 
+  // Convert workout dates to timestamps and add to set
   workouts.forEach(w => {
     const d = new Date(w.date);
     d.setHours(0, 0, 0, 0);
     datesSet.add(d.getTime());
   });
 
+  if (datesSet.size === 0) return 0;
+
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const todayMs = today.getTime();
 
+  let streak = 0;
+  let currentCheckDate = todayMs;
+
+  // If no workout today, check from yesterday
   if (!datesSet.has(todayMs)) {
-    return 0;
+    currentCheckDate = todayMs - dayMs;
   }
 
-  let streak = 0;
-  let current = todayMs;
-  while (datesSet.has(current)) {
+  // Count consecutive days with workouts
+  while (datesSet.has(currentCheckDate)) {
     streak++;
-    current -= dayMs;
+    currentCheckDate -= dayMs;
   }
+
   return streak;
 }
 
@@ -63,11 +70,6 @@ export default function HomeScreen() {
   const [longestStreak, setLongestStreak] = useState<number>(0);
   const auth = getAuth();
   
-  const streakData = {
-    currentStreak: 0,
-    longestStreak: 0,
-  };
-
   useEffect(() => {
     const fetchWorkouts = async () => {
       if (!auth.currentUser) return;
