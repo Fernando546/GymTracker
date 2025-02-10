@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, ScrollView } from 'react-native';
-import { Card, Text, useTheme } from 'react-native-paper';
+import { View, StyleSheet } from 'react-native';
+import { Card, Text } from 'react-native-paper';
 import { getAuth } from 'firebase/auth';
 import { collection, getDocs, query, orderBy, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 
 // Helper function to calculate the current streak from an array of workouts.
 function calculateStreak(workouts: { date: string }[]): number {
@@ -64,12 +66,13 @@ function calculateLongestStreak(workouts: { date: string }[]): number {
 }
 
 export default function HomeScreen() {
-  const theme = useTheme();
   const [workouts, setWorkouts] = useState<{ date: string }[]>([]);
   const [streak, setStreak] = useState<number>(0);
   const [longestStreak, setLongestStreak] = useState<number>(0);
   const auth = getAuth();
-  
+  const accentColor = '#7C4DFF';
+  const darkBackground = '#080808';
+
   useEffect(() => {
     const fetchWorkouts = async () => {
       if (!auth.currentUser) return;
@@ -89,7 +92,6 @@ export default function HomeScreen() {
         const computedLongestStreak = calculateLongestStreak(fetchedWorkouts);
         setLongestStreak(computedLongestStreak);
 
-        // Update longest streak in the user's document if needed.
         const userDocRef = doc(db, "users", auth.currentUser.uid);
         const userDocSnap = await getDoc(userDocRef);
         const storedLongest = userDocSnap.exists() ? userDocSnap.data()?.longestStreak || 0 : 0;
@@ -105,58 +107,222 @@ export default function HomeScreen() {
   }, [auth.currentUser]);
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      {/* Streak Display Section */}
-      <Card style={[styles.card, { backgroundColor: theme.colors.elevation.level2 }]}>
-        <Card.Content>
-          <Text style={[styles.cardTitle, { color: theme.colors.onSurface }]}>Current Streak</Text>
-          <View style={styles.streakContainer}>
-            <Text style={[styles.streakNumber, { color: theme.colors.primary }]}>
-              {streak}
-            </Text>
-            <Text style={{ color: theme.colors.onSurface }}>day current streak</Text>
+    <LinearGradient
+      colors={[darkBackground, '#101010', '#181818']}
+      style={styles.container}
+    >
+      {/* Decorative Elements */}
+      <View style={[styles.circle, styles.circle1]} />
+      <View style={[styles.circle, styles.circle2]} />
+      
+      {/* Main Content */}
+      <View style={styles.content}>
+        {/* Streak Section */}
+        <Card style={styles.card}>
+          <View style={styles.cardHeader}>
+            <Ionicons name="flame" size={28} color={accentColor} />
+            <Text style={styles.cardTitle}>Workout Streaks</Text>
           </View>
-          <View style={styles.streakContainer}>
-            <Text style={[styles.streakNumber, { color: theme.colors.primary }]}>
-              {longestStreak}
-            </Text>
-            <Text style={{ color: theme.colors.onSurface }}>day longest streak</Text>
+          
+          <View style={styles.streakRow}>
+            <View style={styles.streakItem}>
+              <Text style={styles.streakNumber}>{streak}</Text>
+              <Text style={styles.streakLabel}>Current Streak</Text>
+              <Ionicons 
+                name="calendar" 
+                size={24} 
+                color="#666" 
+                style={styles.streakIcon}
+              />
+            </View>
+            
+            <View style={styles.separator} />
+            
+            <View style={styles.streakItem}>
+              <Text style={styles.streakNumber}>{longestStreak}</Text>
+              <Text style={styles.streakLabel}>Longest Streak</Text>
+              <Ionicons 
+                name="trophy" 
+                size={24} 
+                color="#666" 
+                style={styles.streakIcon}
+              />
+            </View>
           </View>
-        </Card.Content>
-      </Card>
+        </Card>
 
-      {/* Weight Progress Preview */}
-      <Card style={[styles.card, { backgroundColor: theme.colors.elevation.level2 }]}>
-        <Card.Content>
-          <Text style={[styles.cardTitle, { color: theme.colors.onSurface }]}>Weight Progress</Text>
-          <Text style={{ color: theme.colors.onSurface }}>Current Weight: 70 kg</Text>
-          <Text style={{ color: theme.colors.onSurface }}>Target Weight: 65 kg</Text>
-        </Card.Content>
-      </Card>
-    </ScrollView>
+        {/* Progress Section */}
+        <Card style={styles.card}>
+          <View style={styles.cardHeader}>
+            <Ionicons name="barbell" size={28} color={accentColor} />
+            <Text style={styles.cardTitle}>Weight Progress</Text>
+          </View>
+          
+          <View style={styles.progressContainer}>
+            <View style={styles.progressItem}>
+              <Text style={styles.progressValue}>70 kg</Text>
+              <Text style={styles.progressLabel}>Current</Text>
+            </View>
+            
+            <View style={styles.progressBarContainer}>
+              <View style={[styles.progressBar, { width: '70%' }]}>
+                <LinearGradient
+                  colors={['#7C4DFF', '#651FFF']}
+                  style={styles.progressFill}
+                  start={{ x: 0, y: 0.5 }}
+                  end={{ x: 1, y: 0.5 }}
+                />
+              </View>
+            </View>
+            
+            <View style={styles.progressItem}>
+              <Text style={styles.progressValue}>65 kg</Text>
+              <Text style={styles.progressLabel}>Target</Text>
+            </View>
+          </View>
+        </Card>
+
+        {/* Recent Activity */}
+        <Card style={styles.card}>
+          <View style={styles.cardHeader}>
+            <Ionicons name="list" size={28} color={accentColor} />
+            <Text style={styles.cardTitle}>Recent Workouts</Text>
+          </View>
+          <View style={styles.activityContainer}>
+            {workouts.slice(0, 3).map((workout, index) => (
+              <View key={index} style={styles.activityItem}>
+                <Ionicons name="checkmark-circle" size={20} color="#7C4DFF" />
+                <Text style={styles.activityText}>
+                  {new Date(workout.date).toLocaleDateString()}
+                </Text>
+              </View>
+            ))}
+          </View>
+        </Card>
+      </View>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 16,
+    padding: 24,
+  },
+  content: {
+    flex: 1,
+    zIndex: 1,
   },
   card: {
-    marginBottom: 16,
-    elevation: 4,
+    backgroundColor: '#121212',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: '#333',
   },
-  streakContainer: {
+  cardHeader: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 16,
-  },
-  streakNumber: {
-    fontSize: 48,
-    fontWeight: 'bold',
+    marginBottom: 20,
   },
   cardTitle: {
+    color: '#fff',
     fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 8,
+    fontWeight: '700',
+    marginLeft: 12,
   },
-}); 
+  streakRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  streakItem: {
+    alignItems: 'center',
+    flex: 1,
+    position: 'relative',
+  },
+  streakNumber: {
+    color: '#fff',
+    fontSize: 36,
+    fontWeight: '800',
+    marginBottom: 4,
+  },
+  streakLabel: {
+    color: '#888',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  streakIcon: {
+    position: 'absolute',
+    top: -8,
+    right: 8,
+    opacity: 0.3,
+  },
+  separator: {
+    width: 1,
+    height: 60,
+    backgroundColor: '#333',
+    marginHorizontal: 20,
+  },
+  progressContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  progressItem: {
+    alignItems: 'center',
+  },
+  progressValue: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  progressLabel: {
+    color: '#888',
+    fontSize: 12,
+  },
+  progressBarContainer: {
+    flex: 1,
+    height: 8,
+    backgroundColor: '#333',
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  progressBar: {
+    height: '100%',
+  },
+  progressFill: {
+    flex: 1,
+  },
+  activityContainer: {
+    gap: 12,
+  },
+  activityItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 8,
+  },
+  activityText: {
+    color: '#fff',
+    fontSize: 14,
+  },
+  circle: {
+    position: 'absolute',
+    borderRadius: 500,
+    backgroundColor: '#7C4DFF10',
+  },
+  circle1: {
+    width: 300,
+    height: 300,
+    top: -150,
+    left: -150,
+  },
+  circle2: {
+    width: 200,
+    height: 200,
+    bottom: -100,
+    right: -100,
+  },
+});

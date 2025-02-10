@@ -1,7 +1,6 @@
 import { Tabs } from 'expo-router';
 import { useTheme } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
-import { Stack } from 'expo-router';
 import { BackHandler } from 'react-native';
 import { useFocusEffect, useSegments } from 'expo-router';
 import React from 'react';
@@ -11,14 +10,6 @@ import { adaptNavigationTheme } from 'react-native-paper';
 export default function AppLayout() {
   const theme = useTheme();
   const segments = useSegments();
-  // Construct the current path from the segments.
-  const routePath = segments.join("/");
-  // Define the base tab routes where we want to block the hardware back button.
-  const blockRoutes = [
-    "(app)/home/index",
-    "(app)/workout/index",
-    "(app)/profile/index"
-  ];
   
   useFocusEffect(
     React.useCallback(() => {
