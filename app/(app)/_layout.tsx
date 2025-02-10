@@ -1,53 +1,51 @@
 import { Tabs } from 'expo-router';
 import { useTheme } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
-import { BackHandler } from 'react-native';
-import { useFocusEffect, useSegments } from 'expo-router';
-import React from 'react';
-import { DarkTheme as NavigationDarkTheme } from '@react-navigation/native';
-import { adaptNavigationTheme } from 'react-native-paper';
+import { LinearGradient } from 'expo-linear-gradient';
+import { View, StyleSheet } from 'react-native';
 
 export default function AppLayout() {
   const theme = useTheme();
-  const segments = useSegments();
-  
-  useFocusEffect(
-    React.useCallback(() => {
-      const onBackPress = () => {
-        // Block back if at the base level (assumed when segments length <= 2)
-        if (segments.length <= 2) {
-          return true; // Block hardware back button.
-        }
-        return false; // Allow default behavior in nested screens.
-      };
-
-      const subscription = BackHandler.addEventListener("hardwareBackPress", onBackPress);
-      return () => subscription.remove();
-    }, [segments])
-  );
-
-  const { DarkTheme } = adaptNavigationTheme({
-    reactNavigationDark: NavigationDarkTheme,
-  });
+  const accentColor = '#7C4DFF';
+  const darkBackground = '#080808';
 
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: theme.colors.elevation.level2,
+          backgroundColor: darkBackground,
           borderTopWidth: 0,
+          height: 60,
+          paddingHorizontal: 16,
         },
-        tabBarActiveTintColor: theme.colors.primary,
-        tabBarInactiveTintColor: theme.colors.onSurface,
+        tabBarActiveTintColor: accentColor,
+        tabBarInactiveTintColor: '#666',
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: '600',
+          marginBottom: 8,
+        },
+        tabBarItemStyle: {
+          borderRadius: 12,
+          marginHorizontal: 4,
+          height: 56,
+        },
       }}
     >
       <Tabs.Screen
         name="home/index"
         options={{
           title: 'Home',
-          tabBarIcon: ({ color }) => (
-            <Ionicons name="home-outline" size={24} color={color} />
+          tabBarIcon: ({ focused, color }) => (
+            <View style={styles.iconContainer}>
+              <Ionicons 
+                name={focused ? 'home' : 'home-outline'} 
+                size={24} 
+                color={color} 
+              />
+              {focused && <View style={styles.activeIndicator} />}
+            </View>
           ),
         }}
       />
@@ -55,8 +53,22 @@ export default function AppLayout() {
         name="workout"
         options={{
           title: 'Workout',
-          tabBarIcon: ({ color }) => (
-            <Ionicons name="barbell-outline" size={24} color={color} />
+          tabBarIcon: ({ focused, color }) => (
+            <View style={styles.iconContainer}>
+              <Ionicons 
+                name={focused ? 'barbell' : 'barbell-outline'} 
+                size={24} 
+                color={color} 
+              />
+              {focused && (
+                <LinearGradient
+                  colors={[accentColor, '#651FFF']}
+                  style={[styles.activeIndicator, styles.gradientIndicator]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                />
+              )}
+            </View>
           ),
         }}
       />
@@ -64,11 +76,42 @@ export default function AppLayout() {
         name="profile"
         options={{
           title: 'Profile',
-          tabBarIcon: ({ color }) => (
-            <Ionicons name="person-outline" size={24} color={color} />
+          tabBarIcon: ({ focused, color }) => (
+            <View style={styles.iconContainer}>
+              <Ionicons 
+                name={focused ? 'person' : 'person-outline'} 
+                size={24} 
+                color={color} 
+              />
+              {focused && <View style={styles.activeIndicator} />}
+            </View>
           ),
         }}
       />
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  iconContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    top: 4,
+  },
+  activeIndicator: {
+    position: 'absolute',
+    top: -16,
+    height: 3,
+    width: '140%',
+    backgroundColor: '#7C4DFF',
+    borderRadius: 2,
+  },
+  gradientIndicator: {
+    height: 4,
+  },
+  tabBarBackground: {
+    flex: 1,
+    width: '100%',
+  },
+});
