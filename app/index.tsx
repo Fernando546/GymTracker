@@ -1,12 +1,12 @@
 import { Link } from 'expo-router';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, Linking } from 'react-native';
 import { Button, Text, useTheme } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 
 const customTheme = {
   colors: {
-    primary: '#7C4DFF', // Our purple accent color
+    primary: '#7C4DFF',
     accent: '#7C4DFF',
     background: '#080808',
     surface: '#121212',
@@ -18,15 +18,19 @@ const customTheme = {
 };
 
 export default function Index() {
-  const accentColor = '#7C4DFF'; // Rich purple
-  const darkBackground = '#080808'; // Deeper black
+  const accentColor = '#7C4DFF';
+  const darkBackground = '#080808';
+
+  const handleGithubPress = () => {
+    Linking.openURL('https://github.com/Fernando546');
+  };
 
   return (
     <LinearGradient
-      colors={[darkBackground, '#101010', '#181818']} // Darker gradient
+      colors={[darkBackground, '#101010', '#181818']}
       style={styles.container}
     >
-      {/* Enhanced decorative elements */}
+      {/* Decorative elements */}
       <View style={[styles.circle, styles.circle1, { 
         backgroundColor: '#7C4DFF20', 
         width: 400, 
@@ -63,21 +67,21 @@ export default function Index() {
 
       <View style={styles.buttonContainer}>
         <Link href={'/login' as any} asChild>
-        <Button 
-              mode="contained" 
-              style={[styles.button, { 
-                backgroundColor: accentColor,
-                shadowColor: accentColor,
-                shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: 0.3,
-                shadowRadius: 8,
-              }]}
-              labelStyle={[styles.buttonLabel, { color: '#fff' }]}
-              icon="login"
-              theme={customTheme} // Apply custom theme
-            >
-              Sign In
-            </Button>
+          <Button 
+            mode="contained" 
+            style={[styles.button, { 
+              backgroundColor: accentColor,
+              shadowColor: accentColor,
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.3,
+              shadowRadius: 8,
+            }]}
+            labelStyle={[styles.buttonLabel, { color: '#fff' }]}
+            icon="login"
+            theme={customTheme}
+          >
+            Sign In
+          </Button>
         </Link>
 
         <View style={styles.separator}>
@@ -99,6 +103,16 @@ export default function Index() {
             Create Account
           </Button>
         </Link>
+      </View>
+
+      {/* Footer with creator credit */}
+      <View style={styles.footer}>
+        <Text 
+          style={styles.footerText}
+          onPress={handleGithubPress}
+        >
+          App created by Fernando
+        </Text>
       </View>
     </LinearGradient>
   );
@@ -177,5 +191,15 @@ const styles = StyleSheet.create({
   circle3: {
     top: '30%',
     left: '60%',
+  },
+  footer: {
+    position: 'absolute',
+    bottom: 24,
+    alignSelf: 'center',
+  },
+  footerText: {
+    color: '#666',
+    fontSize: 12,
+    textDecorationLine: 'underline',
   },
 });

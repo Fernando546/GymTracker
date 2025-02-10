@@ -23,11 +23,26 @@ export default function ProfileScreen() {
   const [followingCount, setFollowingCount] = useState<number>(0);
   const [showAllAchievements, setShowAllAchievements] = useState(false);
   const achievements = [
-    { id: '1', name: '30 Day Streak', image: 'https://via.placeholder.com/50?text=30d', achieved: true },
-    { id: '2', name: '100 Workouts', image: 'https://via.placeholder.com/50?text=100w', achieved: false },
-    { id: '3', name: 'First PR', image: 'https://via.placeholder.com/50?text=PR', achieved: true },
-    { id: '4', name: '5K Run', image: 'https://via.placeholder.com/50?text=5K', achieved: false }
+    { id: '0', name: '1 Day Streak', image: require('@/assets/images/one.png'), achieved: false },
+    { id: '1', name: '10 Day Streak', image: require('@/assets/images/one.png'), achieved: false },
+    { id: '2', name: '30 Day Streak', image: require('@/assets/images/thirty.png'), achieved: false },
+    { id: '3', name: '100 Day Streak', image: require('@/assets/images/thirty.png'), achieved: false },
+    { id: '4', name: '1 Year Streak', image: require('@/assets/images/thirty.png'), achieved: false },
+    { id: '5', name: '100 Workouts', image: require('@/assets/images/thirty.png'), achieved: false },
+    { id: '6', name: 'Bench 100!', image: require('@/assets/images/thirty.png'), achieved: true },
+    { id: '7', name: '5K Run', image: require('@/assets/images/thirty.png'), achieved: false },
+    { id: '8', name: 'First Run', image: require('@/assets/images/thirty.png'), achieved: false },
+    { id: '9', name: '5k Run', image: require('@/assets/images/thirty.png'), achieved: false },
+    { id: '10', name: '10k Run', image: require('@/assets/images/thirty.png'), achieved: false },
+    { id: '11', name: 'Half Marathon', image: require('@/assets/images/thirty.png'), achieved: false },
+    { id: '12', name: 'Marathon', image: require('@/assets/images/thirty.png'), achieved: false },
+    { id: '13', name: '10 Pull-Ups', image: require('@/assets/images/thirty.png'), achieved: false },
+    { id: '14', name: '10 Push-Ups', image: require('@/assets/images/thirty.png'), achieved: false },
+    { id: '15', name: '100 Push-Ups', image: require('@/assets/images/thirty.png'), achieved: false },
+    { id: '16', name: '100 Pull-Ups', image: require('@/assets/images/thirty.png'), achieved: false }, 
+    { id: '17', name: 'First Swim', image: require('@/assets/images/thirty.png'), achieved: false },  
   ];
+
   const sortedAchievements = [...achievements].sort((a, b) =>
     a.achieved === b.achieved ? 0 : a.achieved ? -1 : 1
   );
@@ -284,7 +299,7 @@ export default function ProfileScreen() {
           {achievementsToShow.map(item => (
             <View key={item.id} style={styles.achievementItem}>
               <Image
-                source={{ uri: item.image }}
+                source={typeof item.image === 'number' ? item.image : { uri: item.image }}
                 style={[
                   styles.achievementImage,
                   !item.achieved && styles.unachievedImage
@@ -446,7 +461,6 @@ const styles = StyleSheet.create({
   achievementImage: {
     width: 50,
     height: 50,
-    borderRadius: 25,
   },
   unachievedImage: {
     opacity: 0.5,
