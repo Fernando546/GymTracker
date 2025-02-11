@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, TextInput, BackHandler, Alert, Image } from 'react-native';
+import { View, StyleSheet, ScrollView, TextInput, BackHandler, Alert } from 'react-native';
 import { Text, useTheme, Button, Card, IconButton } from 'react-native-paper';
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { collection, addDoc } from 'firebase/firestore';

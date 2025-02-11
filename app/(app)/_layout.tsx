@@ -2,12 +2,23 @@ import { Tabs } from 'expo-router';
 import { useTheme } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, BackHandler } from 'react-native';
+import { useFocusEffect } from 'expo-router';
 
 export default function AppLayout() {
   const theme = useTheme();
   const accentColor = '#7C4DFF';
   const darkBackground = '#080808';
+
+  useFocusEffect(() => {
+    const onBackPress = () => {
+      // Prevent going back to auth screens
+      return true;
+    };
+
+    BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => BackHandler.removeEventListener('hardwareBackPress', onBackPress);
+  });
 
   return (
     <Tabs
