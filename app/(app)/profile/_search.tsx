@@ -1,5 +1,5 @@
-import { View, StyleSheet, FlatList } from 'react-native';
-import { TextInput, Avatar, Text, Button, useTheme } from 'react-native-paper';
+import { View, StyleSheet, FlatList, BackHandler } from 'react-native';
+import { TextInput, Avatar, Text, Button, useTheme, IconButton } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useState, useEffect } from 'react';
@@ -24,6 +24,17 @@ export default function SearchScreen() {
   const [loading, setLoading] = useState(false);
   const { user } = useAuth();
 
+  useEffect(() => {
+    const backHandler = BackHandler.addEventListener(
+      'hardwareBackPress',
+      () => {
+        router.back();
+        return true;
+      }
+    );
+    return () => backHandler.remove();
+  }, []);
+
   const searchUsers = async () => {
     if (!searchText) return;
     setLoading(true);
@@ -47,6 +58,16 @@ export default function SearchScreen() {
 
   return (
     <LinearGradient colors={['#080808', '#101010', '#181818']} style={styles.container}>
+      {/* Header with Back Button */}
+      <View style={styles.header}>
+        <IconButton
+          icon={() => <Ionicons name="arrow-back" size={24} color="#7C4DFF" />}
+          onPress={() => router.back()}
+        />
+        <Text style={styles.title}>Search Users</Text>
+        <View style={{ width: 24 }} />
+      </View>
+
       {/* Search Header */}
       <View style={styles.searchContainer}>
         <Ionicons name="search" size={20} color="#7C4DFF" style={styles.searchIcon} />
@@ -120,13 +141,24 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 16,
   },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#121212',
     borderRadius: 12,
     paddingHorizontal: 16,
-    marginBottom: 20,
+    marginBottom: 16,
     borderWidth: 1,
     borderColor: '#333',
   },
@@ -193,4 +225,4 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: 'center',
   },
-}); 
+});
