@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet } from 'react-native';
-import { Card, Text } from 'react-native-paper';
+import { View, StyleSheet, ScrollView, Image, ActivityIndicator, Animated } from 'react-native';
+import { Card, Text, useTheme, Button } from 'react-native-paper';
 import { getAuth } from 'firebase/auth';
-import { collection, getDocs, query, orderBy, doc, getDoc, updateDoc } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, doc, getDoc, updateDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { router } from 'expo-router';
+import { useAuth } from '../../context/AuthContext';
 
 // Helper function to calculate the current streak from an array of workouts.
 function calculateStreak(workouts: { date: string }[]): number {
@@ -66,12 +68,40 @@ function calculateLongestStreak(workouts: { date: string }[]): number {
 }
 
 export default function HomeScreen() {
+  const theme = useTheme();
+  const { user } = useAuth();
+  const [currentStreak, setCurrentStreak] = useState(0);
+  const [longestStreak, setLongestStreak] = useState(0);
   const [workouts, setWorkouts] = useState<{ date: string }[]>([]);
-  const [streak, setStreak] = useState<number>(0);
-  const [longestStreak, setLongestStreak] = useState<number>(0);
+  const [loading, setLoading] = useState(false);
   const auth = getAuth();
   const accentColor = '#7C4DFF';
   const darkBackground = '#080808';
+
+  // Real-time streak listener
+  useEffect(() => {
+    if (!user?.uid) return;
+    
+    const unsubscribe = onSnapshot(doc(db, 'users', user.uid, 'streaks', 'current'), (doc) => {
+      if (doc.exists()) {
+        setCurrentStreak(doc.data().count);
+      }
+    });
+    
+    return () => unsubscribe();
+  }, [user?.uid]);
+
+  useEffect(() => {
+    if (!user?.uid) return;
+    
+    const unsubscribe = onSnapshot(doc(db, 'users', user.uid, 'streaks', 'longest'), (doc) => {
+      if (doc.exists()) {
+        setLongestStreak(doc.data().count);
+      }
+    });
+    
+    return () => unsubscribe();
+  }, [user?.uid]);
 
   useEffect(() => {
     const fetchWorkouts = async () => {
@@ -87,7 +117,7 @@ export default function HomeScreen() {
         setWorkouts(fetchedWorkouts);
 
         const calculatedStreak = calculateStreak(fetchedWorkouts);
-        setStreak(calculatedStreak);
+        setCurrentStreak(calculatedStreak);
 
         const computedLongestStreak = calculateLongestStreak(fetchedWorkouts);
         setLongestStreak(computedLongestStreak);
@@ -126,7 +156,7 @@ export default function HomeScreen() {
           
           <View style={styles.streakRow}>
             <View style={styles.streakItem}>
-              <Text style={styles.streakNumber}>{streak}</Text>
+              <Text style={styles.streakNumber}>{currentStreak}</Text>
               <Text style={styles.streakLabel}>Current Streak</Text>
               <Ionicons 
                 name="calendar" 
@@ -186,14 +216,15 @@ export default function HomeScreen() {
         <Card style={styles.card}>
           <View style={styles.cardHeader}>
             <Ionicons name="list" size={28} color={accentColor} />
-            <Text style={styles.cardTitle}>Recent Workouts</Text>
+            <Text style={styles.cardTitle}>Recent Activity</Text>
           </View>
+          
           <View style={styles.activityContainer}>
             {workouts.slice(0, 3).map((workout, index) => (
               <View key={index} style={styles.activityItem}>
                 <Ionicons name="checkmark-circle" size={20} color="#7C4DFF" />
                 <Text style={styles.activityText}>
-                  {new Date(workout.date).toLocaleDateString()}
+                  Workout on {new Date(workout.date).toLocaleDateString()}
                 </Text>
               </View>
             ))}
