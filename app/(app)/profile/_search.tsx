@@ -1,94 +1,117 @@
-import React, { useEffect, useState } from 'react';
-import {
-  View,
-  StyleSheet,
-  FlatList,
-  TouchableOpacity
-} from 'react-native';
-import { TextInput, Text, Avatar, useTheme } from 'react-native-paper';
-import { useRouter } from 'expo-router';
+import { View, StyleSheet, FlatList } from 'react-native';
+import { TextInput, Avatar, Text, Button, useTheme } from 'react-native-paper';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
+import { useState, useEffect } from 'react';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
+import { router } from 'expo-router';
+
+interface User {
+  uid: string;
+  username: string;
+  profile?: {
+    name?: string;
+    imageUrl?: string;
+  };
+}
 
 export default function SearchScreen() {
   const theme = useTheme();
-  const router = useRouter();
-  const { user } = useAuth();
   const [searchText, setSearchText] = useState('');
-  const [results, setResults] = useState<any[]>([]);
+  const [results, setResults] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
+  const { user } = useAuth();
 
-  const fetchUsers = async () => {
-    if (!searchText.trim()) {
-      setResults([]);
-      return;
-    }
+  const searchUsers = async () => {
+    if (!searchText) return;
     setLoading(true);
     try {
-      const usersRef = collection(db, 'users');
       const q = query(
-        usersRef,
+        collection(db, 'users'),
         where('username', '>=', searchText),
         where('username', '<=', searchText + '\uf8ff')
       );
-      const snapshot = await getDocs(q);
-      let users: any[] = [];
-      snapshot.forEach((doc) => {
-        users.push({ uid: doc.id, ...doc.data() });
-      });
-      if (user && user.uid) {
-        users = users.filter((item) => item.uid !== user.uid);
-      }
+      const querySnapshot = await getDocs(q);
+      const users = querySnapshot.docs
+        .filter(doc => doc.id !== user?.uid)
+        .map(doc => ({ uid: doc.id, ...doc.data() } as User));
       setResults(users);
     } catch (error) {
-      console.error("Error fetching users", error);
+      console.error('Search error:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchUsers();
-  }, [searchText]);
-
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <TextInput
-        style={[styles.searchInput, { backgroundColor: theme.colors.surface }]}
-        placeholder="Search users..."
-        placeholderTextColor={theme.colors.onSurfaceVariant}
-        value={searchText}
-        onChangeText={setSearchText}
-      />
-      {loading ? (
-        <Text style={{ textAlign: 'center', marginTop: 16 }}>Loading...</Text>
-      ) : (
-        <FlatList
-          data={results}
-          keyExtractor={(item) => item.uid}
-          renderItem={({ item }) => (
-            <TouchableOpacity onPress={() => router.push(`/profile/${item.uid}`)}>
-              <View style={styles.itemContainer}>
-                {item?.profile?.imageUrl ? (
-                  <Avatar.Image size={40} source={{ uri: item.profile.imageUrl }} />
-                ) : (
-                  <Avatar.Icon icon="account" size={40} />
-                )}
-                <Text style={[styles.username, { color: theme.colors.onBackground }]}>
-                  {item.username}
-                </Text>
-              </View>
-            </TouchableOpacity>
-          )}
-          ListEmptyComponent={
-            <Text style={[styles.emptyText, { color: theme.colors.onBackground }]}>
-              No users found.
-            </Text>
-          }
+    <LinearGradient colors={['#080808', '#101010', '#181818']} style={styles.container}>
+      {/* Search Header */}
+      <View style={styles.searchContainer}>
+        <Ionicons name="search" size={20} color="#7C4DFF" style={styles.searchIcon} />
+        <TextInput
+          placeholder="Search users..."
+          placeholderTextColor="#666"
+          value={searchText}
+          onChangeText={setSearchText}
+          onSubmitEditing={searchUsers}
+          style={styles.searchInput}
+          underlineColor="transparent"
+          activeUnderlineColor="transparent"
+          outlineColor="transparent"
+          textColor="#fff"
         />
-      )}
-    </View>
+        <Button 
+          mode="contained" 
+          onPress={searchUsers}
+          buttonColor="#7C4DFF"
+          style={styles.searchButton}
+          labelStyle={{ color: '#fff' }}
+        >
+          Search
+        </Button>
+      </View>
+
+      {/* Results List */}
+      <FlatList
+        data={results}
+        keyExtractor={(item) => item.uid}
+        contentContainerStyle={styles.listContainer}
+        ListEmptyComponent={
+          !loading && searchText ? (
+            <View style={styles.emptyContainer}>
+              <Ionicons name="people-outline" size={60} color="#7C4DFF" style={styles.emptyIcon} />
+              <Text style={styles.emptyText}>No users found</Text>
+            </View>
+          ) : null
+        }
+        renderItem={({ item }) => (
+          <View style={styles.userCard}>
+            <Avatar.Image 
+              size={50} 
+              source={{ uri: item.profile?.imageUrl }} 
+              style={styles.avatar}
+              theme={{ colors: { primary: '#7C4DFF' }}}
+            />
+            <View style={styles.userInfo}>
+              <Text style={styles.username}>@{item.username}</Text>
+              {item.profile?.name && (
+                <Text style={styles.name}>{item.profile.name}</Text>
+              )}
+            </View>
+            <Button
+              mode="outlined"
+              onPress={() => router.push(`/profile/${item.uid}`)}
+              textColor="#7C4DFF"
+              style={styles.viewButton}
+            >
+              View
+            </Button>
+          </View>
+        )}
+      />
+    </LinearGradient>
   );
 }
 
@@ -97,26 +120,77 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 16,
   },
-  searchInput: {
-    padding: 8,
-    borderRadius: 4,
-    fontSize: 16,
-    marginBottom: 16,
-  },
-  itemContainer: {
+  searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#ccc',
+    backgroundColor: '#121212',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  searchIcon: {
+    marginRight: 12,
+  },
+  searchInput: {
+    flex: 1,
+    height: 50,
+    backgroundColor: 'transparent',
+    fontSize: 16,
+  },
+  searchButton: {
+    marginLeft: 12,
+    borderRadius: 8,
+  },
+  listContainer: {
+    paddingBottom: 20,
+  },
+  userCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#121212',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  avatar: {
+    marginRight: 16,
+    borderWidth: 2,
+    borderColor: '#7C4DFF',
+  },
+  userInfo: {
+    flex: 1,
   },
   username: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+    marginBottom: 4,
+  },
+  name: {
+    fontSize: 14,
+    color: '#888',
+  },
+  viewButton: {
+    borderRadius: 8,
+    borderColor: '#7C4DFF',
     marginLeft: 12,
-    fontSize: 18,
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+  },
+  emptyIcon: {
+    opacity: 0.3,
+    marginBottom: 16,
   },
   emptyText: {
-    textAlign: 'center',
-    marginTop: 20,
+    color: '#888',
     fontSize: 16,
+    textAlign: 'center',
   },
 }); 

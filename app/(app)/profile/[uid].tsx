@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Image, ActivityIndicator, TouchableOpacity } from 'react-native';
-import { Text, useTheme, Button, Avatar } from 'react-native-paper';
+import { View, StyleSheet, ScrollView, Image, ActivityIndicator, TouchableOpacity, BackHandler } from 'react-native';
+import { Text, useTheme, Button, Avatar, IconButton, Card } from 'react-native-paper';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { doc, getDoc, collection, getCountFromServer } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { followUser, unfollowUser } from '../../services/user';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function UserProfileScreen() {
   const theme = useTheme();
@@ -68,6 +70,18 @@ export default function UserProfileScreen() {
     checkFollow();
   }, [user, uid]);
 
+  // Handle hardware back button
+  useEffect(() => {
+    const backHandler = BackHandler.addEventListener(
+      'hardwareBackPress',
+      () => {
+        router.back();
+        return true;
+      }
+    );
+    return () => backHandler.remove();
+  }, []);
+
   if (loading) {
     return (
       <View style={styles.containerCentered}>
@@ -85,10 +99,33 @@ export default function UserProfileScreen() {
   }
 
   const { username, profile } = userData;
+  const isCurrentUser = user?.uid === uid;
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <LinearGradient colors={['#080808', '#101010', '#181818']} style={styles.container}>
+      {/* Header */}
       <View style={styles.header}>
+        <IconButton 
+          icon={() => <Ionicons name="arrow-back" size={24} color="#7C4DFF" />}
+          onPress={() => router.back()}
+        />
+        <Text style={[styles.title, { color: theme.colors.onBackground }]}>
+          {profile?.name || 'Profile'}
+        </Text>
+        {isCurrentUser ? (
+          <IconButton 
+            icon="pencil" 
+            size={24} 
+            onPress={() => router.push('/profile/edit')}
+            iconColor="#7C4DFF"
+          />
+        ) : (
+          <View style={{ width: 24 }} /> // Spacer
+        )}
+      </View>
+
+      {/* Profile Card */}
+      <Card style={styles.profileCard}>
         <View style={styles.avatarContainer}>
           {profile?.imageUrl ? (
             <Image 
@@ -198,14 +235,15 @@ export default function UserProfileScreen() {
             </Button>
           </View>
         )}
-      </View>
-    </ScrollView>
+      </Card>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    padding: 16,
   },
   containerCentered: {
     flex: 1,
@@ -213,12 +251,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   header: {
+    flexDirection: 'row',
     alignItems: 'center',
-    padding: 20,
+    justifyContent: 'space-between',
+    marginBottom: 24,
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: 'bold',
   },
   avatarContainer: {
-    marginBottom: 16,
-    position: 'relative',
+    marginBottom: 20,
   },
   avatar: {
     width: 120,
@@ -241,10 +284,9 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   bio: {
-    textAlign: 'center',
-    marginBottom: 20,
-    paddingHorizontal: 20,
-    opacity: 0.7,
+    fontSize: 14,
+    color: '#fff',
+    lineHeight: 24,
   },
   statsContainer: {
     flexDirection: 'row',
@@ -256,13 +298,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   statNumber: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
-    marginBottom: 4,
+    color: '#7C4DFF',
   },
   statLabel: {
     fontSize: 14,
-    opacity: 0.7,
+    color: '#888',
   },
   followButtonContainer: {
     marginTop: 12,
@@ -270,5 +312,30 @@ const styles = StyleSheet.create({
   },
   followButton: {
     width: '50%',
+  },
+  profileCard: {
+    backgroundColor: '#1a1a1a',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 20,
+  },
+  sectionCard: {
+    backgroundColor: '#121212',
+    borderRadius: 16,
+    padding: 20,
+    marginTop: 16,
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 16,
+  },
+  achievementsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
   },
 }); 
