@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator, Animated } from 'react-native';
 import { Text, useTheme, Button, Card, Avatar, IconButton, TextInput as PaperTextInput, Button as PaperButton } from 'react-native-paper';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useUserProfile } from '../../hooks/useUserProfile';
@@ -8,6 +8,8 @@ import * as ImagePicker from 'expo-image-picker';
 import { pickImage, uploadProfileImage, updateUserProfile } from '../../services/user';
 import { collection, getCountFromServer } from 'firebase/firestore';
 import { db } from '../../config/firebase';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function ProfileScreen() {
   const theme = useTheme();
@@ -138,206 +140,222 @@ export default function ProfileScreen() {
   }
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <View style={styles.header}>
-        <View style={styles.avatarContainer}>
-          <TouchableOpacity 
-            style={styles.avatarContainer}
-            onPress={handleImagePick}
-            disabled={isUploading}
-          >
-            {profile?.profile?.imageUrl ? (
-              <Image 
-                source={{ uri: profile.profile.imageUrl }} 
-                style={styles.avatar}
-              />
-            ) : (
-              <Avatar.Text 
-                size={120}
-                label={profile?.username?.substring(0, 2).toUpperCase() ?? '??'}
-                style={{ backgroundColor: theme.colors.primary }}
-              />
-            )}
-            {isUploading && (
-              <View style={[styles.editBadge, { backgroundColor: theme.colors.primary }]}>
-                <ActivityIndicator size="small" color={theme.colors.onPrimary} />
-              </View>
-            )}
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.nameContainer}>
-          <View style={styles.editableField}>
-            {isEditingName ? (
-              <PaperTextInput
-                value={newName}
-                onChangeText={setNewName}
-                style={[styles.nameInput, { backgroundColor: 'transparent' }]}
-                onBlur={handleUpdateName}
-                autoFocus
-              />
-            ) : (
-              <View style={[styles.editableField, { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }]}>
-                <IconButton icon="pencil" size={16} style={{ opacity: 0 }} />
-
-                <TouchableOpacity 
-                  onPress={() => {
-                    setNewName(profile?.profile?.name || '');
-                    setIsEditingName(true);
-                  }}
-                >
-                  <Text style={[styles.name, { color: theme.colors.onBackground, textAlign: 'center' }]}>
-                    {profile?.profile?.name || 'Add name'}
-                  </Text>
-                </TouchableOpacity>
-
-                <IconButton 
-                  icon="pencil" 
-                  size={16}
-                  onPress={() => {
-                    setNewName(profile?.profile?.name || '');
-                    setIsEditingName(true);
-                  }}
-                  style={{ marginLeft: 4 }}
-                />
-              </View>
-            )}
-          </View>
-          <Text style={[styles.usernameTag, { color: theme.colors.onBackground }]}>
-            @{profile?.username}
-          </Text>
-        </View>
-        <View style={styles.editableField}>
-          {isEditingBio ? (
-            <>
-              <PaperTextInput
-                value={newBio}
-                onChangeText={setNewBio}
-                style={[styles.bioInput, { backgroundColor: 'transparent' }]}
-                onBlur={handleUpdateBio}
-                autoFocus
-                multiline
-              />
-              <PaperButton onPress={handleUpdateBio} mode="contained" style={styles.doneButton}>
-                Done
-              </PaperButton>
-            </>
-          ) : (
-            <View style={[styles.editableField, { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }]}>
-              <IconButton icon="pencil" size={16} style={{ opacity: 0 }} />
-
-              <TouchableOpacity 
-                onPress={() => {
-                  setNewBio(profile?.profile?.bio || '');
-                  setIsEditingBio(true);
-                }}
-              >
-                <Text style={[styles.bio, { color: theme.colors.onBackground, textAlign: 'center' }]}>
-                  {profile?.profile?.bio || 'Add bio'}
-                </Text>
-              </TouchableOpacity>
-
-              <IconButton 
-                icon="pencil" 
-                size={16}
-                onPress={() => {
-                  setNewBio(profile?.profile?.bio || '');
-                  setIsEditingBio(true);
-                }}
-                style={{ marginLeft: 4, transform: [{ translateY: -2 }] }} 
-              />
-            </View>
-          )}
-        </View>
-
-        <View style={styles.statsContainer}>
-          <TouchableOpacity onPress={() => router.push(`/profile/followers?uid=${user?.uid}`)}>
-            <View style={styles.statItem}>
-              <Text style={[styles.statNumber, { color: theme.colors.primary }]}>
-                {followersCount}
-              </Text>
-              <Text style={[styles.statLabel, { color: theme.colors.onBackground }]}>
-                Followers
-              </Text>
-            </View>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => router.push(`/profile/following?uid=${user?.uid}`)}>
-            <View style={styles.statItem}>
-              <Text style={[styles.statNumber, { color: theme.colors.primary }]}>
-                {followingCount}
-              </Text>
-              <Text style={[styles.statLabel, { color: theme.colors.onBackground }]}>
-                Following
-              </Text>
-            </View>
-          </TouchableOpacity>
-          <View style={styles.statItem}>
-            <Text style={[styles.statNumber, { color: theme.colors.primary }]}>
-              {profile?.profile?.achievements ?? 0}
-            </Text>
-            <Text style={[styles.statLabel, { color: theme.colors.onBackground }]}>
-              Achievements
-            </Text>
-          </View>
-        </View>
-        <View style={styles.followButtonContainer}>
-          <Button
-            mode="contained"
-            style={styles.followButton}
-            onPress={() => router.push('/(app)/profile/_search')}
-          >
-            Find User
-          </Button>
-        </View>
-      </View>
-
-      <View style={[styles.achievementsContainer, { backgroundColor: theme.colors.elevation.level2 }]}>
-        <Text style={[styles.sectionTitle, { color: theme.colors.onBackground }]}>
-          Achievements
-        </Text>
-        <View style={styles.achievementsGrid}>
-          {achievementsToShow.map(item => (
-            <View key={item.id} style={styles.achievementItem}>
-              <Image
-                source={typeof item.image === 'number' ? item.image : { uri: item.image }}
-                style={[
-                  styles.achievementImage,
-                  !item.achieved && styles.unachievedImage
-                ]}
-              />
-              <Text
-                style={[
-                  styles.achievementName,
-                  { color: theme.colors.onBackground },
-                  !item.achieved && { opacity: 0.5 }
-                ]}
-              >
-                {item.name}
-              </Text>
-            </View>
-          ))}
-        </View>
-        {achievements.length > 3 && (
-          <Button mode="text" onPress={() => setShowAllAchievements(!showAllAchievements)}>
-            {showAllAchievements ? 'Show Less' : 'Show More'}
-          </Button>
-        )}
-      </View>
-
-      <Button 
-        mode="outlined"
-        onPress={signOut}
-        style={styles.editButton}
+    <LinearGradient colors={['#080808', '#101010', '#181818']} style={styles.container}>
+      {/* Decorative elements */}
+      <View style={[styles.circle, styles.circle1]} />
+      <View style={[styles.circle, styles.circle2]} />
+      
+      <ScrollView 
+        contentContainerStyle={styles.scrollContainer}
+        showsVerticalScrollIndicator={false}
       >
-        Sign Out
-      </Button>
-    </ScrollView>
+        <Card style={styles.card}>
+          <View style={styles.header}>
+            <View style={styles.avatarContainer}>
+              <TouchableOpacity 
+                style={styles.avatarContainer}
+                onPress={handleImagePick}
+                disabled={isUploading}
+              >
+                {profile?.profile?.imageUrl ? (
+                  <Image 
+                    source={{ uri: profile.profile.imageUrl }} 
+                    style={styles.avatar}
+                  />
+                ) : (
+                  <Avatar.Text 
+                    size={120}
+                    label={profile?.username?.substring(0, 2).toUpperCase() ?? '??'}
+                    style={{ backgroundColor: theme.colors.primary }}
+                  />
+                )}
+                {isUploading && (
+                  <View style={[styles.editBadge, { backgroundColor: theme.colors.primary }]}>
+                    <ActivityIndicator size="small" color={theme.colors.onPrimary} />
+                  </View>
+                )}
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.nameContainer}>
+              <View style={styles.editableField}>
+                {isEditingName ? (
+                  <PaperTextInput
+                    value={newName}
+                    onChangeText={setNewName}
+                    style={[styles.nameInput, { backgroundColor: 'transparent' }]}
+                    onBlur={handleUpdateName}
+                    autoFocus
+                  />
+                ) : (
+                  <View style={[styles.editableField, { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }]}>
+                    <IconButton icon="pencil" size={16} style={{ opacity: 0 }} />
+
+                    <TouchableOpacity 
+                      onPress={() => {
+                        setNewName(profile?.profile?.name || '');
+                        setIsEditingName(true);
+                      }}
+                    >
+                      <Text style={[styles.name, { color: theme.colors.onBackground, textAlign: 'center' }]}>
+                        {profile?.profile?.name || 'Add name'}
+                      </Text>
+                    </TouchableOpacity>
+
+                    <IconButton 
+                      icon="pencil" 
+                      size={16}
+                      onPress={() => {
+                        setNewName(profile?.profile?.name || '');
+                        setIsEditingName(true);
+                      }}
+                      style={{ marginLeft: 4 }}
+                    />
+                  </View>
+                )}
+              </View>
+              <Text style={[styles.usernameTag, { color: theme.colors.onBackground }]}>
+                @{profile?.username}
+              </Text>
+            </View>
+            <View style={styles.editableField}>
+              {isEditingBio ? (
+                <>
+                  <PaperTextInput
+                    value={newBio}
+                    onChangeText={setNewBio}
+                    style={[styles.bioInput, { backgroundColor: 'transparent' }]}
+                    onBlur={handleUpdateBio}
+                    autoFocus
+                    multiline
+                  />
+                  <PaperButton onPress={handleUpdateBio} mode="contained" style={styles.doneButton}>
+                    Done
+                  </PaperButton>
+                </>
+              ) : (
+                <View style={[styles.editableField, { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }]}>
+                  <IconButton icon="pencil" size={16} style={{ opacity: 0 }} />
+
+                  <TouchableOpacity 
+                    onPress={() => {
+                      setNewBio(profile?.profile?.bio || '');
+                      setIsEditingBio(true);
+                    }}
+                  >
+                    <Text style={[styles.bio, { color: theme.colors.onBackground, textAlign: 'center' }]}>
+                      {profile?.profile?.bio || 'Add bio'}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <IconButton 
+                    icon="pencil" 
+                    size={16}
+                    onPress={() => {
+                      setNewBio(profile?.profile?.bio || '');
+                      setIsEditingBio(true);
+                    }}
+                    style={{ marginLeft: 4, transform: [{ translateY: -2 }] }} 
+                  />
+                </View>
+              )}
+            </View>
+
+            <View style={styles.statsContainer}>
+              <TouchableOpacity onPress={() => router.push(`/profile/followers?uid=${user?.uid}`)}>
+                <View style={styles.statItem}>
+                  <Text style={[styles.statNumber, { color: '#7C4DFF' }]}>
+                    {followersCount}
+                  </Text>
+                  <Text style={[styles.statLabel, { color: theme.colors.onBackground }]}>
+                    Followers
+                  </Text>
+                </View>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => router.push(`/profile/following?uid=${user?.uid}`)}>
+                <View style={styles.statItem}>
+                  <Text style={[styles.statNumber, { color: '#7C4DFF' }]}>
+                    {followingCount}
+                  </Text>
+                  <Text style={[styles.statLabel, { color: theme.colors.onBackground }]}>
+                    Following
+                  </Text>
+                </View>
+              </TouchableOpacity>
+              <View style={styles.statItem}>
+                <Text style={[styles.statNumber, { color: '#7C4DFF' }]}>
+                  {profile?.profile?.achievements ?? 0}
+                </Text>
+                <Text style={[styles.statLabel, { color: theme.colors.onBackground }]}>
+                  Achievements
+                </Text>
+              </View>
+            </View>
+            <View style={styles.followButtonContainer}>
+              <Button
+                mode="contained"
+                buttonColor="#7C4DFF"
+                textColor="#fff"
+                style={styles.followButton}
+                onPress={() => router.push('/(app)/profile/_search')}
+              >
+                Find User
+              </Button>
+            </View>
+          </View>
+        </Card>
+
+        <Card style={styles.card}>
+          <Text style={[styles.sectionTitle, { color: theme.colors.onBackground }]}>
+            <Ionicons name="trophy" size={20} color="#7C4DFF" style={styles.icon} />
+            {'  '}Achievements
+          </Text>
+          <View style={styles.achievementsGrid}>
+            {achievementsToShow.map(item => (
+              <View key={item.id} style={styles.achievementItem}>
+                <Image
+                  source={typeof item.image === 'number' ? item.image : { uri: item.image }}
+                  style={[
+                    styles.achievementImage,
+                    !item.achieved && styles.unachievedImage
+                  ]}
+                />
+                <Text
+                  style={[
+                    styles.achievementName,
+                    { color: theme.colors.onBackground },
+                    !item.achieved && { opacity: 0.5 }
+                  ]}
+                >
+                  {item.name}
+                </Text>
+              </View>
+            ))}
+          </View>
+          {achievements.length > 3 && (
+            <Button mode="text" textColor="#7C4DFF" onPress={() => setShowAllAchievements(!showAllAchievements)}>
+              {showAllAchievements ? 'Show Less' : 'Show More'}
+            </Button>
+          )}
+        </Card>
+
+        <Button 
+          mode="outlined"
+          textColor="#7C4DFF"
+          onPress={signOut}
+          style={styles.editButton}
+        >
+          Sign Out
+        </Button>
+      </ScrollView>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    padding: 24,
   },
   header: {
     alignItems: 'center',
@@ -468,5 +486,36 @@ const styles = StyleSheet.create({
   achievementName: {
     marginTop: 4,
     fontSize: 12,
+  },
+  card: {
+    backgroundColor: '#121212',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  scrollContainer: {
+    paddingBottom: 40,
+  },
+  circle: {
+    position: 'absolute',
+    borderRadius: 500,
+    backgroundColor: '#7C4DFF10',
+  },
+  circle1: {
+    width: 300,
+    height: 300,
+    top: -150,
+    left: -150,
+  },
+  circle2: {
+    width: 200,
+    height: 200,
+    bottom: -100,
+    right: -100,
+  },
+  icon: {
+    marginRight: 8,
   },
 }); 
