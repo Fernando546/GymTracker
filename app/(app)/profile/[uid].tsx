@@ -136,7 +136,7 @@ export default function UserProfileScreen() {
             <Avatar.Text 
               size={120}
               label={username?.substring(0, 2).toUpperCase() ?? '??'}
-              style={{ backgroundColor: theme.colors.primary }}
+              style={{ backgroundColor: '#7C4DFF' }}
             />
           )}
         </View>
@@ -162,7 +162,7 @@ export default function UserProfileScreen() {
             }}
           >
             <View style={styles.statItem}>
-              <Text style={[styles.statNumber, { color: theme.colors.primary }]}>
+              <Text style={[styles.statNumber, { color: '#7C4DFF' }]}>
                 {followersCount}
               </Text>
               <Text style={[styles.statLabel, { color: theme.colors.onBackground }]}>
@@ -177,7 +177,7 @@ export default function UserProfileScreen() {
             }}
           >
             <View style={styles.statItem}>
-              <Text style={[styles.statNumber, { color: theme.colors.primary }]}>
+              <Text style={[styles.statNumber, { color: '#7C4DFF' }]}>
                 {followingCount}
               </Text>
               <Text style={[styles.statLabel, { color: theme.colors.onBackground }]}>
@@ -186,7 +186,7 @@ export default function UserProfileScreen() {
             </View>
           </TouchableOpacity>
           <View style={styles.statItem}>
-            <Text style={[styles.statNumber, { color: theme.colors.primary }]}>
+            <Text style={[styles.statNumber, { color: '#7C4DFF' }]}>
               {profile?.achievements ?? 0}
             </Text>
             <Text style={[styles.statLabel, { color: theme.colors.onBackground }]}>
@@ -211,16 +211,15 @@ export default function UserProfileScreen() {
           <View style={styles.followButtonContainer}>
             <Button
               mode="contained"
-              style={styles.followButton}
+              buttonColor="#7C4DFF"
+              textColor="#fff"
               onPress={async () => {
                 try {
                   if (isFollowed) {
-                    // Unfollow the user if already followed.
                     await unfollowUser(user.uid, uid);
                     setIsFollowed(false);
                     setFollowersCount((prev) => Math.max(prev - 1, 0));
                   } else {
-                    // Follow the user if not followed.
                     await followUser(user.uid, uid);
                     setIsFollowed(true);
                     setFollowersCount((prev) => prev + 1);
@@ -230,6 +229,7 @@ export default function UserProfileScreen() {
                   alert("Failed to update follow status");
                 }
               }}
+              style={styles.followButton}
             >
               {isFollowed ? "Followed" : "Follow"}
             </Button>
@@ -262,6 +262,8 @@ const styles = StyleSheet.create({
   },
   avatarContainer: {
     marginBottom: 20,
+    display: 'flex',
+    alignItems: 'center',
   },
   avatar: {
     width: 120,
@@ -287,6 +289,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#fff',
     lineHeight: 24,
+    textAlign: 'center',
+    marginHorizontal: 20,
+    marginBottom: 20,
   },
   statsContainer: {
     flexDirection: 'row',
@@ -301,6 +306,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#7C4DFF',
+    marginBottom: 4,
   },
   statLabel: {
     fontSize: 14,
@@ -312,6 +318,8 @@ const styles = StyleSheet.create({
   },
   followButton: {
     width: '50%',
+    alignSelf: 'center',
+    borderRadius: 8,
   },
   profileCard: {
     backgroundColor: '#1a1a1a',
