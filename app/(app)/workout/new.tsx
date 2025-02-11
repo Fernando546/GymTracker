@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, TextInput, BackHandler, Alert } from 'react-native';
+import { View, StyleSheet, ScrollView, TextInput, BackHandler } from 'react-native';
 import { Text, useTheme, Button, Card, IconButton } from 'react-native-paper';
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { collection, addDoc } from 'firebase/firestore';
@@ -7,6 +7,7 @@ import { db } from '../../config/firebase';
 import { getAuth } from 'firebase/auth';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import CustomAlert from '@/components/CustomAlert';
 
 type WorkoutExercise = {
   id: string;
@@ -25,11 +26,28 @@ export default function NewWorkoutScreen() {
     selectedExercises?: string;
   }>();
   const [exercises, setExercises] = useState<WorkoutExercise[]>([]);
+  const [alertVisible, setAlertVisible] = useState(false);
+  const [alertContent, setAlertContent] = useState({
+    title: '',
+    message: '',
+    buttons: [] as Array<{ text: string; onPress: () => void }>,
+  });
+
+  const showAlert = (
+    title: string,
+    message: string,
+    buttons: Array<{ text: string; onPress: () => void }>
+  ) => {
+    setAlertContent({ title, message, buttons });
+    setAlertVisible(true);
+  };
 
   // Save workout to Firestore
   const handleSaveWorkout = async () => {
     if (exercises.length === 0) {
-      Alert.alert("No exercises", "Please add at least one exercise.");
+      showAlert("No exercises", "Please add at least one exercise.", [
+        { text: "OK", onPress: () => setAlertVisible(false) }
+      ]);
       return;
     }
 
@@ -49,18 +67,29 @@ export default function NewWorkoutScreen() {
       router.replace('/(app)/workout');
     } catch (err) {
       console.error("Error saving workout", err);
-      Alert.alert("Error", "Failed to save workout");
+      showAlert("Error", "Failed to save workout", [
+        { text: "OK", onPress: () => setAlertVisible(false) }
+      ]);
     }
   };
 
   // Confirm exit dialog
   const confirmExit = () => {
-    Alert.alert(
+    showAlert(
       'Discard Workout?',
       'Are you sure you want to exit without saving?',
       [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Discard', onPress: () => router.replace('/(app)/workout') },
+        { 
+          text: 'Cancel', 
+          onPress: () => setAlertVisible(false) 
+        },
+        { 
+          text: 'Discard', 
+          onPress: () => {
+            setAlertVisible(false);
+            router.replace('/(app)/workout');
+          }
+        },
       ]
     );
   };
@@ -199,6 +228,13 @@ export default function NewWorkoutScreen() {
           Add Exercise
         </Button>
       </ScrollView>
+      <CustomAlert
+        visible={alertVisible}
+        title={alertContent.title}
+        message={alertContent.message}
+        onDismiss={() => setAlertVisible(false)}
+        buttons={alertContent.buttons}
+      />
     </LinearGradient>
   );
 }
