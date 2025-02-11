@@ -160,14 +160,26 @@ export default function NewWorkoutScreen() {
         ) : (
           exercises.map(ex => (
             <Card key={ex.id} style={[styles.exerciseCard, { backgroundColor: '#121212' }]}>
-              <Text style={{ marginBottom: 4, fontWeight: 'bold', color: '#fff' }}>
-                {ex.name}
-              </Text>
+              <LinearGradient
+                colors={['#7C4DFF', '#651FFF']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.cardHeader}
+              >
+                <Text style={styles.exerciseName}>{ex.name}</Text>
+                <Ionicons 
+                  name="barbell" 
+                  size={20} 
+                  color="#ffffff40" 
+                  style={styles.exerciseIcon}
+                />
+              </LinearGradient>
               {ex.type === 'cardio' ? (
                 <View style={styles.row}>
                   <TextInput 
                     style={styles.input}
                     placeholder="Time (min)"
+                    placeholderTextColor="#666"
                     value={ex.time}
                     onChangeText={(text) =>
                       setExercises(prev => prev.map(e => e.id === ex.id ? { ...e, time: text } : e))
@@ -176,6 +188,7 @@ export default function NewWorkoutScreen() {
                   <TextInput 
                     style={styles.input}
                     placeholder="Distance (km)"
+                    placeholderTextColor="#666"
                     value={ex.distance}
                     onChangeText={(text) =>
                       setExercises(prev => prev.map(e => e.id === ex.id ? { ...e, distance: text } : e))
@@ -185,31 +198,43 @@ export default function NewWorkoutScreen() {
               ) : (
                 <View style={styles.row}>
                   {ex.type !== 'bodyweight' && (
+                    <View style={styles.inputContainer}>
+                      <Ionicons name="speedometer" size={16} color="#7C4DFF" style={styles.inputIcon} />
+                      <TextInput 
+                        style={styles.input}
+                        placeholder="Weight (kg)"
+                        placeholderTextColor="#666"
+                        value={ex.weight}
+                        onChangeText={(text) =>
+                          setExercises(prev => prev.map(e => e.id === ex.id ? { ...e, weight: text } : e))
+                        }
+                      />
+                    </View>
+                  )}
+                  <View style={styles.inputContainer}>
+                    <Ionicons name="repeat" size={16} color="#7C4DFF" style={styles.inputIcon} />
                     <TextInput 
                       style={styles.input}
-                      placeholder="Weight (kg)"
-                      value={ex.weight}
+                      placeholder="Reps"
+                      placeholderTextColor="#666"
+                      value={ex.reps}
                       onChangeText={(text) =>
-                        setExercises(prev => prev.map(e => e.id === ex.id ? { ...e, weight: text } : e))
+                        setExercises(prev => prev.map(e => e.id === ex.id ? { ...e, reps: text } : e))
                       }
                     />
-                  )}
-                  <TextInput 
-                    style={styles.input}
-                    placeholder="Reps"
-                    value={ex.reps}
-                    onChangeText={(text) =>
-                      setExercises(prev => prev.map(e => e.id === ex.id ? { ...e, reps: text } : e))
-                    }
-                  />
-                  <TextInput 
-                    style={styles.input}
-                    placeholder="Sets"
-                    value={ex.sets}
-                    onChangeText={(text) =>
-                      setExercises(prev => prev.map(e => e.id === ex.id ? { ...e, sets: text } : e))
-                    }
-                  />
+                  </View>
+                  <View style={styles.inputContainer}>
+                    <Ionicons name="list" size={16} color="#7C4DFF" style={styles.inputIcon} />
+                    <TextInput 
+                      style={styles.input}
+                      placeholder="Sets"
+                      placeholderTextColor="#666"
+                      value={ex.sets}
+                      onChangeText={(text) =>
+                        setExercises(prev => prev.map(e => e.id === ex.id ? { ...e, sets: text } : e))
+                      }
+                    />
+                  </View>
                 </View>
               )}
             </Card>
@@ -280,12 +305,44 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#333',
+    overflow: 'hidden',
+    elevation: 3,
+    shadowColor: '#7C4DFF',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
+  cardHeader: {
+    padding: 12,
+    borderRadius: 8,
+    margin: -16,
+    marginBottom: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  exerciseName: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  exerciseIcon: {
+    marginLeft: 8,
   },
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginTop: 8,
     gap: 8,
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    backgroundColor: '#1a1a1a',
+    borderRadius: 8,
+    paddingHorizontal: 12,
   },
   input: {
     borderWidth: 1,
@@ -295,5 +352,11 @@ const styles = StyleSheet.create({
     width: '30%',
     textAlign: 'center',
     color: '#fff',
+    flex: 1,
+    backgroundColor: 'transparent',
+  },
+  inputIcon: {
+    marginRight: 8,
+    opacity: 0.8,
   },
 }); 
