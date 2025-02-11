@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, TextInput, BackHandler, Alert } from 'react-native';
+import { View, StyleSheet, ScrollView, TextInput, BackHandler, Alert, Image } from 'react-native';
 import { Text, useTheme, Button, Card, IconButton } from 'react-native-paper';
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { collection, addDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { getAuth } from 'firebase/auth';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 
 type WorkoutExercise = {
   id: string;
@@ -99,13 +101,13 @@ export default function NewWorkoutScreen() {
   }, [params.selectedExercises]);
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-     <View style={styles.header}>
+    <LinearGradient colors={['#080808', '#101010', '#181818']} style={styles.container}>
+      <View style={styles.header}>
         <IconButton 
           icon="close" 
           size={24} 
           onPress={confirmExit}
-          iconColor={theme.colors.onBackground}
+          iconColor="#7C4DFF"
         />
         <Text style={[styles.title, { color: theme.colors.onBackground }]}>
           New Workout
@@ -114,19 +116,24 @@ export default function NewWorkoutScreen() {
           icon="check" 
           size={24} 
           onPress={handleSaveWorkout}
-          iconColor={theme.colors.primary}
+          iconColor="#7C4DFF"
         />
       </View>
 
       <ScrollView style={styles.content}>
         {exercises.length === 0 ? (
-          <Text style={[styles.emptyText, { color: theme.colors.onBackground }]}>
-            No exercises added yet
-          </Text>
+          <View style={styles.emptyState}>
+            <Ionicons name="barbell" size={48} color="#7C4DFF" style={styles.emptyIcon} />
+            <Text style={[styles.emptyText, { color: theme.colors.onBackground }]}>
+              No exercises added yet
+            </Text>
+          </View>
         ) : (
           exercises.map(ex => (
-            <Card key={ex.id} style={styles.exerciseCard}>
-              <Text style={{ marginBottom: 4, fontWeight: 'bold' }}>{ex.name}</Text>
+            <Card key={ex.id} style={[styles.exerciseCard, { backgroundColor: '#121212' }]}>
+              <Text style={{ marginBottom: 4, fontWeight: 'bold', color: '#fff' }}>
+                {ex.name}
+              </Text>
               {ex.type === 'cardio' ? (
                 <View style={styles.row}>
                   <TextInput 
@@ -186,27 +193,26 @@ export default function NewWorkoutScreen() {
             params: { currentExercises: JSON.stringify(exercises) }
           })}
           style={styles.addButton}
+          textColor="#fff"
           icon="plus"
         >
           Add Exercise
         </Button>
       </ScrollView>
-    </View>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    padding: 16,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.1)',
+    marginBottom: 24,
   },
   title: {
     fontSize: 20,
@@ -214,10 +220,19 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    padding: 20,
   },
   addButton: {
-    marginBottom: 20,
+    backgroundColor: '#7C4DFF',
+    marginVertical: 16,
+  },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 200,
+  },
+  emptyIcon: {
+    marginBottom: 16,
+    opacity: 0.5,
   },
   emptyText: {
     textAlign: 'center',
@@ -225,19 +240,24 @@ const styles = StyleSheet.create({
   },
   exerciseCard: {
     marginVertical: 8,
-    padding: 8,
+    padding: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#333',
   },
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginTop: 8,
+    gap: 8,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: '#333',
     borderRadius: 4,
     padding: 4,
     width: '30%',
     textAlign: 'center',
+    color: '#fff',
   },
 }); 
