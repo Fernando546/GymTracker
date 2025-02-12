@@ -184,10 +184,12 @@ export default function WeightProgress() {
         >
           Add Today's Weight
         </Button>
+      </ScrollView>
 
-        {/* Entry Form Modal */}
-        {showForm && (
-          <View style={styles.modal}>
+      {/* Modal overlay */}
+      {showForm && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
             <View style={styles.modalContent}>
               <TextInput
                 label="Today's Weight (kg)"
@@ -195,7 +197,7 @@ export default function WeightProgress() {
                 onChangeText={setTodayWeight}
                 keyboardType="numeric"
                 mode="outlined"
-                style={styles.input}
+                style={styles.modalInput}
                 theme={{ colors: { primary: '#7C4DFF' }}}
                 autoFocus={true}
               />
@@ -219,8 +221,8 @@ export default function WeightProgress() {
               </View>
             </View>
           </View>
-        )}
-      </ScrollView>
+        </View>
+      )}
     </LinearGradient>
   );
 }
@@ -275,34 +277,38 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginTop: 16,
   },
-  modal: {
+  modalOverlay: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.7)',
     justifyContent: 'center',
-    padding: 20,
+    alignItems: 'center',
     zIndex: 1000,
-    elevation: 1000,
   },
-  modalContent: {
+  modalContainer: {
+    width: '90%',
+    maxWidth: 400,
     backgroundColor: '#121212',
     borderRadius: 12,
-    padding: 20,
-    marginHorizontal: 20,
+    padding: 24,
+  },
+  modalContent: {
+    width: '100%',
+  },
+  modalInput: {
+    backgroundColor: '#1a1a1a',
+    marginBottom: 24,
   },
   modalButtons: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
     gap: 12,
-    marginTop: 16,
   },
   modalButton: {
     minWidth: 100,
-    flex: 1,
   },
   goalsHeader: {
     flexDirection: 'row',
