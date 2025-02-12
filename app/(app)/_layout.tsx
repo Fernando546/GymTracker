@@ -6,7 +6,6 @@ import { View, StyleSheet, BackHandler } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 
 export default function AppLayout() {
-  const theme = useTheme();
   const accentColor = '#7C4DFF';
   const darkBackground = '#080808';
 
@@ -45,7 +44,7 @@ export default function AppLayout() {
       }}
     >
       <Tabs.Screen
-        name="home/index"
+        name="home"
         options={{
           title: 'Home',
           tabBarIcon: ({ focused, color }) => (

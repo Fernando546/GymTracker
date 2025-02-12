@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, ScrollView, Image, ActivityIndicator, Animated } from 'react-native';
+import { View, StyleSheet, ScrollView, Image, ActivityIndicator, Animated, TouchableOpacity } from 'react-native';
 import { Card, Text, useTheme, Button } from 'react-native-paper';
 import { getAuth } from 'firebase/auth';
 import { collection, getDocs, query, orderBy, doc, getDoc, updateDoc, onSnapshot } from 'firebase/firestore';
@@ -185,7 +185,9 @@ export default function HomeScreen() {
         <Card style={styles.card}>
           <View style={styles.cardHeader}>
             <Ionicons name="barbell" size={28} color={accentColor} />
-            <Text style={styles.cardTitle}>Weight Progress</Text>
+            <TouchableOpacity onPress={() => router.push('/home/weightProgress')}>
+              <Text style={styles.cardTitle}>Weight Progress</Text>
+            </TouchableOpacity>
           </View>
           
           <View style={styles.progressContainer}>
