@@ -202,7 +202,7 @@ export default function NewWorkoutScreen() {
                       <Ionicons name="speedometer" size={16} color="#7C4DFF" style={styles.inputIcon} />
                       <TextInput 
                         style={styles.input}
-                        placeholder="Weight (kg)"
+                        placeholder="Kg"
                         placeholderTextColor="#666"
                         value={ex.weight}
                         onChangeText={(text) =>
