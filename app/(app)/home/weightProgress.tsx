@@ -29,12 +29,16 @@ export default function WeightProgress() {
         setEditMode(false);
       }
 
-      const q = query(collection(db, 'users', user.uid, 'weightEntries'), orderBy('date', 'desc'));
+      const q = query(
+        collection(db, 'users', user.uid, 'weightEntries'),
+        orderBy('timestamp', 'desc')
+      );
       const unsubscribe = onSnapshot(q, (snapshot) => {
         const data = snapshot.docs.map(doc => ({
-          date: doc.id,
+          date: doc.data().timestamp.toDate().toISOString().split('T')[0],
           weight: doc.data().weight
         }));
+        console.log('Weight entries:', data);
         setEntries(data);
       });
 
@@ -150,7 +154,7 @@ export default function WeightProgress() {
         )}
 
         {/* Progress Chart */}
-        {entries.length > 0 && (
+        {entries.length > 0 ? (
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Progress Overview</Text>
             <LineChart
@@ -172,6 +176,12 @@ export default function WeightProgress() {
               style={styles.chart}
               fromZero={true}
             />
+          </View>
+        ) : (
+          <View style={styles.card}>
+            <Text style={styles.emptyText}>
+              Add at least 2 weight entries to see progress
+            </Text>
           </View>
         )}
 
@@ -337,5 +347,10 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 18,
     fontWeight: '700',
+  },
+  emptyText: {
+    color: '#888',
+    fontSize: 14,
+    textAlign: 'center',
   },
 }); 
