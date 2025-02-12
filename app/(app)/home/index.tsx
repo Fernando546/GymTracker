@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, ScrollView, Image, ActivityIndicator, Animated, TouchableOpacity } from 'react-native';
 import { Card, Text, useTheme, Button } from 'react-native-paper';
 import { getAuth } from 'firebase/auth';
-import { collection, getDocs, query, orderBy, doc, getDoc, updateDoc, onSnapshot } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, doc, getDoc, updateDoc, onSnapshot, where, limit } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -74,6 +74,10 @@ export default function HomeScreen() {
   const [longestStreak, setLongestStreak] = useState(0);
   const [workouts, setWorkouts] = useState<{ date: string }[]>([]);
   const [loading, setLoading] = useState(false);
+  const [currentWeight, setCurrentWeight] = useState('');
+  const [targetWeight, setTargetWeight] = useState('');
+  const [startWeight, setStartWeight] = useState(0);
+  const [progressPercentage, setProgressPercentage] = useState(0);
   const auth = getAuth();
   const accentColor = '#7C4DFF';
   const darkBackground = '#080808';
@@ -136,6 +140,49 @@ export default function HomeScreen() {
     fetchWorkouts();
   }, [auth.currentUser]);
 
+  useEffect(() => {
+    const fetchWeightData = async () => {
+      if (!user?.uid) return;
+      
+      try {
+        // Get latest weight entry
+        const entriesRef = collection(db, 'users', user.uid, 'weightEntries');
+        const q = query(entriesRef, orderBy('timestamp', 'desc'), limit(1));
+        const querySnapshot = await getDocs(q);
+        
+        if (!querySnapshot.empty) {
+          const latest = querySnapshot.docs[0].data().weight;
+          setCurrentWeight(latest.toString());
+        }
+
+        // Get goals
+        const goalsDoc = await getDoc(doc(db, 'users', user.uid, 'weight', 'goals'));
+        if (goalsDoc.exists()) {
+          setStartWeight(Number(goalsDoc.data().current));
+          setTargetWeight(goalsDoc.data().target.toString());
+        }
+      } catch (error) {
+        console.error("Error fetching weight data:", error);
+      }
+    };
+
+    fetchWeightData();
+  }, [user?.uid]);
+
+  useEffect(() => {
+    if (startWeight > 0 && targetWeight && currentWeight) {
+      const start = startWeight;
+      const target = parseFloat(targetWeight);
+      const current = parseFloat(currentWeight);
+      
+      const total = start - target;
+      const progress = start - current;
+      const percentage = Math.min(Math.max((progress / total) * 100, 0), 100);
+      
+      setProgressPercentage(percentage);
+    }
+  }, [startWeight, currentWeight, targetWeight]);
+
   return (
     <LinearGradient
       colors={[darkBackground, '#101010', '#181818']}
@@ -192,12 +239,14 @@ export default function HomeScreen() {
           
           <View style={styles.progressContainer}>
             <View style={styles.progressItem}>
-              <Text style={styles.progressValue}>70 kg</Text>
+              <Text style={styles.progressValue}>
+                {currentWeight || '--'} kg
+              </Text>
               <Text style={styles.progressLabel}>Current</Text>
             </View>
             
             <View style={styles.progressBarContainer}>
-              <View style={[styles.progressBar, { width: '70%' }]}>
+              <View style={[styles.progressBar, { width: `${progressPercentage}%` }]}>
                 <LinearGradient
                   colors={['#7C4DFF', '#651FFF']}
                   style={styles.progressFill}
@@ -208,7 +257,9 @@ export default function HomeScreen() {
             </View>
             
             <View style={styles.progressItem}>
-              <Text style={styles.progressValue}>65 kg</Text>
+              <Text style={styles.progressValue}>
+                {targetWeight || '--'} kg
+              </Text>
               <Text style={styles.progressLabel}>Target</Text>
             </View>
           </View>

@@ -1,9 +1,9 @@
-import { View, StyleSheet, ScrollView } from 'react-native';
+import { View, StyleSheet, ScrollView, Dimensions } from 'react-native';
 import { Text, TextInput, Button, useTheme } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
 import { LineChart } from 'react-native-chart-kit';
 import { useState, useEffect } from 'react';
-import { doc, getDoc, setDoc, collection, onSnapshot, query, orderBy } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, onSnapshot, query, orderBy, getDocs, limit } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { router } from 'expo-router';
@@ -24,9 +24,16 @@ export default function WeightProgress() {
       
       const weightDoc = await getDoc(doc(db, 'users', user.uid, 'weight', 'goals'));
       if (weightDoc.exists()) {
-        setCurrentWeight(weightDoc.data().current.toString());
         setTargetWeight(weightDoc.data().target.toString());
         setEditMode(false);
+      }
+
+      // Get latest weight entry
+      const entriesRef = collection(db, 'users', user.uid, 'weightEntries');
+      const latestEntryQuery = query(entriesRef, orderBy('timestamp', 'desc'), limit(1));
+      const querySnapshot = await getDocs(latestEntryQuery);
+      if (!querySnapshot.empty) {
+        setCurrentWeight(querySnapshot.docs[0].data().weight.toString());
       }
 
       const q = query(
@@ -73,8 +80,16 @@ export default function WeightProgress() {
       data: entries.slice().reverse().map(e => e.weight),
       color: (opacity = 1) => `rgba(124, 77, 255, ${opacity})`,
       strokeWidth: 2
-    }]
+    }],
+    yAxisRange: [
+      currentWeight ? parseFloat(currentWeight) - 2 : Math.min(...entries.map(e => e.weight)),
+      targetWeight ? parseFloat(targetWeight) + 2 : Math.max(...entries.map(e => e.weight))
+    ]
   };
+
+  console.log('Current Weight:', currentWeight);
+  console.log('Target Weight:', targetWeight);
+  console.log('Chart Y-Axis Range:', chartData.yAxisRange);
 
   return (
     <LinearGradient colors={['#080808', '#101010', '#181818']} style={styles.container}>
@@ -159,9 +174,11 @@ export default function WeightProgress() {
             <Text style={styles.cardTitle}>Progress Overview</Text>
             <LineChart
               data={chartData}
-              width={350}
+              width={Dimensions.get('window').width - 64}
               height={220}
               yAxisSuffix="kg"
+              fromZero={false}
+              yAxisInterval={1}
               chartConfig={{
                 backgroundColor: '#121212',
                 backgroundGradientFrom: '#121212',
@@ -170,11 +187,16 @@ export default function WeightProgress() {
                 color: (opacity = 1) => `rgba(124, 77, 255, ${opacity})`,
                 labelColor: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
                 style: { borderRadius: 16 },
-                propsForDots: { r: '4', strokeWidth: '2', stroke: '#7C4DFF' }
+                formatYLabel: (value) => Number(value).toFixed(1),
+                propsForLabels: { fontSize: 12 }
               }}
               bezier
               style={styles.chart}
-              fromZero={true}
+              withVerticalLines={false}
+              withHorizontalLines={false}
+              segments={5}
+              // @ts-ignore - Library types are outdated
+              yAxisRange={chartData.yAxisRange}
             />
           </View>
         ) : (
@@ -286,6 +308,7 @@ const styles = StyleSheet.create({
   chart: {
     borderRadius: 12,
     marginTop: 16,
+    alignSelf: 'center',
   },
   modalOverlay: {
     position: 'absolute',
@@ -347,6 +370,13 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 18,
     fontWeight: '700',
+  },
+  goalLine: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    borderTopWidth: 1,
+    borderStyle: 'dashed',
   },
   emptyText: {
     color: '#888',
