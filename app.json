@@ -15,7 +15,8 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#111111"
-      }
+      },
+      "package": "com.fernando546.GymTracker"
     },
     "web": {
       "bundler": "metro",
@@ -36,6 +37,21 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "908b2ac6-01bb-43d0-8863-b038f12cc833"
+      }
+    },
+    "owner": "fernando546",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/908b2ac6-01bb-43d0-8863-b038f12cc833"
     }
   }
 }
