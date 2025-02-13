@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { View, StyleSheet, ScrollView, Image, ActivityIndicator, Animated, TouchableOpacity } from 'react-native';
 import { Card, Text, useTheme, Button } from 'react-native-paper';
 import { getAuth } from 'firebase/auth';
@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
+import { useFocusEffect } from '@react-navigation/native';
 
 // Helper function to calculate the current streak from an array of workouts.
 function calculateStreak(workouts: { date: string }[]): number {
@@ -140,34 +141,36 @@ export default function HomeScreen() {
     fetchWorkouts();
   }, [auth.currentUser]);
 
-  useEffect(() => {
-    const fetchWeightData = async () => {
-      if (!user?.uid) return;
-      
-      try {
-        // Get latest weight entry
-        const entriesRef = collection(db, 'users', user.uid, 'weightEntries');
-        const q = query(entriesRef, orderBy('timestamp', 'desc'), limit(1));
-        const querySnapshot = await getDocs(q);
+  useFocusEffect(
+    useCallback(() => {
+      const fetchWeightData = async () => {
+        if (!user?.uid) return;
         
-        if (!querySnapshot.empty) {
-          const latest = querySnapshot.docs[0].data().weight;
-          setCurrentWeight(latest.toString());
-        }
+        try {
+          // Get latest weight entry
+          const entriesRef = collection(db, 'users', user.uid, 'weightEntries');
+          const q = query(entriesRef, orderBy('timestamp', 'desc'), limit(1));
+          const querySnapshot = await getDocs(q);
+          
+          if (!querySnapshot.empty) {
+            const latest = querySnapshot.docs[0].data().weight;
+            setCurrentWeight(latest.toString());
+          }
 
-        // Get goals
-        const goalsDoc = await getDoc(doc(db, 'users', user.uid, 'weight', 'goals'));
-        if (goalsDoc.exists()) {
-          setStartWeight(Number(goalsDoc.data().current));
-          setTargetWeight(goalsDoc.data().target.toString());
+          // Get goals
+          const goalsDoc = await getDoc(doc(db, 'users', user.uid, 'weight', 'goals'));
+          if (goalsDoc.exists()) {
+            setStartWeight(Number(goalsDoc.data().current));
+            setTargetWeight(goalsDoc.data().target.toString());
+          }
+        } catch (error) {
+          console.error("Error fetching weight data:", error);
         }
-      } catch (error) {
-        console.error("Error fetching weight data:", error);
-      }
-    };
+      };
 
-    fetchWeightData();
-  }, [user?.uid]);
+      fetchWeightData();
+    }, [user?.uid])
+  );
 
   useEffect(() => {
     if (startWeight > 0 && targetWeight && currentWeight) {

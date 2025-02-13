@@ -15,8 +15,8 @@ export default function WeightProgress() {
   const [targetWeight, setTargetWeight] = useState('');
   const [entries, setEntries] = useState<{ date: string; weight: number }[]>([]);
   const [showForm, setShowForm] = useState(false);
-  const [todayWeight, setTodayWeight] = useState('');
   const [editMode, setEditMode] = useState(false);
+  const [startWeight, setStartWeight] = useState('');
 
   useEffect(() => {
     const loadWeights = async () => {
@@ -25,6 +25,7 @@ export default function WeightProgress() {
       const weightDoc = await getDoc(doc(db, 'users', user.uid, 'weight', 'goals'));
       if (weightDoc.exists()) {
         setTargetWeight(weightDoc.data().target.toString());
+        setStartWeight(weightDoc.data().current.toString());
         setEditMode(false);
       }
 
@@ -58,20 +59,20 @@ export default function WeightProgress() {
   const saveGoals = async () => {
     if (!user?.uid) return;
     await setDoc(doc(db, 'users', user.uid, 'weight', 'goals'), {
-      current: parseFloat(currentWeight),
+      current: parseFloat(startWeight),
       target: parseFloat(targetWeight)
     });
+    setEditMode(false);
   };
 
   const addTodayWeight = async () => {
-    if (!user?.uid || !todayWeight) return;
+    if (!user?.uid || !currentWeight) return;
     const today = new Date().toISOString().split('T')[0];
     await setDoc(doc(db, 'users', user.uid, 'weightEntries', today), {
-      weight: parseFloat(todayWeight),
+      weight: parseFloat(currentWeight),
       timestamp: new Date()
     });
     setShowForm(false);
-    setTodayWeight('');
   };
 
   const chartData = {
@@ -81,15 +82,17 @@ export default function WeightProgress() {
       color: (opacity = 1) => `rgba(124, 77, 255, ${opacity})`,
       strokeWidth: 2
     }],
-    yAxisRange: [
-      currentWeight ? parseFloat(currentWeight) - 2 : Math.min(...entries.map(e => e.weight)),
-      targetWeight ? parseFloat(targetWeight) + 2 : Math.max(...entries.map(e => e.weight))
-    ]
+    yAxisRange: [Math.min(Number(startWeight), Number(targetWeight)) - 2, Math.max(Number(startWeight), Number(targetWeight)) + 2]
   };
 
+  const yMin = Math.min(Number(startWeight), Number(targetWeight)) - 2;
+  const yMax = Math.max(Number(startWeight), Number(targetWeight)) + 2;
+
+  console.log('Start Weight:', startWeight);
   console.log('Current Weight:', currentWeight);
   console.log('Target Weight:', targetWeight);
-  console.log('Chart Y-Axis Range:', chartData.yAxisRange);
+  console.log('Weight Entries:', entries);
+  console.log('Chart Y-Axis Range:', [yMin, yMax]);
 
   return (
     <LinearGradient colors={['#080808', '#101010', '#181818']} style={styles.container}>
@@ -113,9 +116,9 @@ export default function WeightProgress() {
             </Text>
             <View style={styles.inputRow}>
               <TextInput
-                label="Current Weight (kg)"
-                value={currentWeight}
-                onChangeText={setCurrentWeight}
+                label="Start Weight (kg)"
+                value={startWeight}
+                onChangeText={setStartWeight}
                 keyboardType="numeric"
                 style={styles.input}
                 mode="outlined"
@@ -158,7 +161,7 @@ export default function WeightProgress() {
             <View style={styles.goalsContainer}>
               <View style={styles.goalItem}>
                 <Text style={styles.goalLabel}>Starting Weight</Text>
-                <Text style={styles.goalValue}>{currentWeight} kg</Text>
+                <Text style={styles.goalValue}>{startWeight} kg</Text>
               </View>
               <View style={styles.goalItem}>
                 <Text style={styles.goalLabel}>Target Weight</Text>
@@ -174,11 +177,10 @@ export default function WeightProgress() {
             <Text style={styles.cardTitle}>Progress Overview</Text>
             <LineChart
               data={chartData}
-              width={Dimensions.get('window').width - 64}
+              width={Dimensions.get('window').width - 55}
               height={220}
-              yAxisSuffix="kg"
+              yAxisSuffix="kg"           
               fromZero={false}
-              yAxisInterval={1}
               chartConfig={{
                 backgroundColor: '#121212',
                 backgroundGradientFrom: '#121212',
@@ -187,16 +189,19 @@ export default function WeightProgress() {
                 color: (opacity = 1) => `rgba(124, 77, 255, ${opacity})`,
                 labelColor: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
                 style: { borderRadius: 16 },
-                formatYLabel: (value) => Number(value).toFixed(1),
-                propsForLabels: { fontSize: 12 }
+                propsForDots: { r: '4', strokeWidth: '2', stroke: '#7C4DFF' }
               }}
               bezier
-              style={styles.chart}
+              style={{ 
+                ...styles.chart,
+                marginHorizontal: 0,
+                alignSelf: 'stretch'
+              }}
               withVerticalLines={false}
               withHorizontalLines={false}
               segments={5}
               // @ts-ignore - Library types are outdated
-              yAxisRange={chartData.yAxisRange}
+              yAxisRange={[yMin, yMax]}
             />
           </View>
         ) : (
@@ -225,8 +230,8 @@ export default function WeightProgress() {
             <View style={styles.modalContent}>
               <TextInput
                 label="Today's Weight (kg)"
-                value={todayWeight}
-                onChangeText={setTodayWeight}
+                value={currentWeight}
+                onChangeText={setCurrentWeight}
                 keyboardType="numeric"
                 mode="outlined"
                 style={styles.modalInput}
