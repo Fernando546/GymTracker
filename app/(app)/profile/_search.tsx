@@ -3,13 +3,12 @@ import { TextInput, Avatar, Text, Button, useTheme, IconButton } from 'react-nat
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useState, useEffect } from 'react';
-import { collection, query, where, getDocs } from 'firebase/firestore';
-import { db } from '../../config/firebase';
+import supabase from '../../config/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { router } from 'expo-router';
 
 interface User {
-  uid: string;
+  id: string;
   username: string;
   profile?: {
     name?: string;
@@ -39,15 +38,19 @@ export default function SearchScreen() {
     if (!searchText) return;
     setLoading(true);
     try {
-      const q = query(
-        collection(db, 'users'),
-        where('username', '>=', searchText),
-        where('username', '<=', searchText + '\uf8ff')
-      );
-      const querySnapshot = await getDocs(q);
-      const users = querySnapshot.docs
-        .filter(doc => doc.id !== user?.uid)
-        .map(doc => ({ uid: doc.id, ...doc.data() } as User));
+      const { data, error } = await supabase
+        .from('users')
+        .select('id, username, profile')
+        .ilike('username', `${searchText}%`);
+
+      const users = data
+        ?.filter(dbUser => dbUser.id !== user?.id)
+        .map(dbUser => ({
+          id: dbUser.id,
+          username: dbUser.username,
+          profile: dbUser.profile
+        } as User)) || [];
+        
       setResults(users);
     } catch (error) {
       console.error('Search error:', error);
@@ -97,7 +100,7 @@ export default function SearchScreen() {
       {/* Results List */}
       <FlatList
         data={results}
-        keyExtractor={(item) => item.uid}
+        keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContainer}
         ListEmptyComponent={
           !loading && searchText ? (
@@ -123,7 +126,7 @@ export default function SearchScreen() {
             </View>
             <Button
               mode="outlined"
-              onPress={() => router.push(`/profile/${item.uid}`)}
+              onPress={() => router.push(`/profile/${item.id}`)}
               textColor="#7C4DFF"
               style={styles.viewButton}
             >

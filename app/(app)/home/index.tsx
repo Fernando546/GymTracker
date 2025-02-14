@@ -1,14 +1,12 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, StyleSheet, ScrollView, Image, ActivityIndicator, Animated, TouchableOpacity } from 'react-native';
 import { Card, Text, useTheme, Button } from 'react-native-paper';
-import { getAuth } from 'firebase/auth';
-import { collection, getDocs, query, orderBy, doc, getDoc, updateDoc, onSnapshot, where, limit } from 'firebase/firestore';
-import { db } from '../../config/firebase';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 import { useFocusEffect } from '@react-navigation/native';
+import supabase from '../../config/supabase';
 
 // Helper function to calculate the current streak from an array of workouts.
 function calculateStreak(workouts: { date: string }[]): number {
@@ -69,57 +67,60 @@ function calculateLongestStreak(workouts: { date: string }[]): number {
 }
 
 export default function HomeScreen() {
-  const theme = useTheme();
   const { user } = useAuth();
   const [currentStreak, setCurrentStreak] = useState(0);
   const [longestStreak, setLongestStreak] = useState(0);
   const [workouts, setWorkouts] = useState<{ date: string }[]>([]);
-  const [loading, setLoading] = useState(false);
   const [currentWeight, setCurrentWeight] = useState('');
   const [targetWeight, setTargetWeight] = useState('');
   const [startWeight, setStartWeight] = useState(0);
   const [progressPercentage, setProgressPercentage] = useState(0);
-  const auth = getAuth();
-  const accentColor = '#7C4DFF';
-  const darkBackground = '#080808';
+
+  // Add theme access from react-native-paper
+  const theme = useTheme();
 
   // Real-time streak listener
   useEffect(() => {
-    if (!user?.uid) return;
-    
-    const unsubscribe = onSnapshot(doc(db, 'users', user.uid, 'streaks', 'current'), (doc) => {
-      if (doc.exists()) {
-        setCurrentStreak(doc.data().count);
-      }
-    });
-    
-    return () => unsubscribe();
+    const fetchStreak = async () => {
+      if (!user?.uid) return;
+      
+      const { data: streakData } = await supabase.rpc('calculate_streak', {
+        user_id: user.uid,
+        target_days: 7
+      });
+      setCurrentStreak(streakData.streak_length);
+      setLongestStreak(streakData.longest_streak);
+    };
+    fetchStreak();
   }, [user?.uid]);
 
   useEffect(() => {
-    if (!user?.uid) return;
-    
-    const unsubscribe = onSnapshot(doc(db, 'users', user.uid, 'streaks', 'longest'), (doc) => {
-      if (doc.exists()) {
-        setLongestStreak(doc.data().count);
-      }
-    });
-    
-    return () => unsubscribe();
+    const checkAchievements = async () => {
+      if (!user?.uid) return;
+      
+      const { data } = await supabase.functions.invoke('achievements', {
+        body: { userId: user.uid, type: 'weekly_streak' }
+      });
+      setCurrentStreak(data.streak_length);
+      setLongestStreak(data.longest_streak);
+    };
+    checkAchievements();
   }, [user?.uid]);
 
   useEffect(() => {
     const fetchWorkouts = async () => {
-      if (!auth.currentUser) return;
+      if (!user?.uid) return;
+      
       try {
-        const workoutsRef = collection(db, "users", auth.currentUser.uid, "workouts");
-        const q = query(workoutsRef, orderBy("date", "desc"));
-        const querySnapshot = await getDocs(q);
-        const fetchedWorkouts: { date: string }[] = [];
-        querySnapshot.forEach(doc => {
-          fetchedWorkouts.push({ date: doc.data().date } as { date: string });
-        });
-        setWorkouts(fetchedWorkouts);
+        const { data: fetchedWorkouts, error } = await supabase
+          .from('workouts')
+          .select('date')
+          .eq('user_id', user.uid)
+          .order('date', { ascending: false });
+
+        if (error) throw error;
+
+        setWorkouts(fetchedWorkouts || []);
 
         const calculatedStreak = calculateStreak(fetchedWorkouts);
         setCurrentStreak(calculatedStreak);
@@ -127,11 +128,19 @@ export default function HomeScreen() {
         const computedLongestStreak = calculateLongestStreak(fetchedWorkouts);
         setLongestStreak(computedLongestStreak);
 
-        const userDocRef = doc(db, "users", auth.currentUser.uid);
-        const userDocSnap = await getDoc(userDocRef);
-        const storedLongest = userDocSnap.exists() ? userDocSnap.data()?.longestStreak || 0 : 0;
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('longest_streak')
+          .eq('id', user.uid)
+          .single();
+        
+        const storedLongest = userData?.longest_streak || 0;
+
         if (computedLongestStreak > storedLongest) {
-          await updateDoc(userDocRef, { longestStreak: computedLongestStreak });
+          await supabase
+            .from('users')
+            .update({ longest_streak: computedLongestStreak })
+            .eq('id', user.uid);
         }
       } catch (error) {
         console.error("Error fetching workouts:", error);
@@ -139,7 +148,7 @@ export default function HomeScreen() {
     };
 
     fetchWorkouts();
-  }, [auth.currentUser]);
+  }, [user?.uid]);
 
   useFocusEffect(
     useCallback(() => {
@@ -148,20 +157,27 @@ export default function HomeScreen() {
         
         try {
           // Get latest weight entry
-          const entriesRef = collection(db, 'users', user.uid, 'weightEntries');
-          const q = query(entriesRef, orderBy('timestamp', 'desc'), limit(1));
-          const querySnapshot = await getDocs(q);
+          const { data: weightData, error } = await supabase
+            .from('weight_entries')
+            .select('weight')
+            .eq('user_id', user.uid)
+            .order('timestamp', { ascending: false })
+            .limit(1);
           
-          if (!querySnapshot.empty) {
-            const latest = querySnapshot.docs[0].data().weight;
+          if (weightData && weightData.length > 0) {
+            const latest = weightData[0].weight;
             setCurrentWeight(latest.toString());
           }
 
           // Get goals
-          const goalsDoc = await getDoc(doc(db, 'users', user.uid, 'weight', 'goals'));
-          if (goalsDoc.exists()) {
-            setStartWeight(Number(goalsDoc.data().current));
-            setTargetWeight(goalsDoc.data().target.toString());
+          const { data: goalsData, error: goalsError } = await supabase
+            .from('weight_goals')
+            .select('current, target')
+            .eq('user_id', user.uid)
+            .single();
+          if (goalsData) {
+            setStartWeight(Number(goalsData.current));
+            setTargetWeight(goalsData.target.toString());
           }
         } catch (error) {
           console.error("Error fetching weight data:", error);
@@ -188,7 +204,7 @@ export default function HomeScreen() {
 
   return (
     <LinearGradient
-      colors={[darkBackground, '#101010', '#181818']}
+      colors={[theme.colors.background, '#101010', '#181818']}
       style={styles.container}
     >
       {/* Decorative Elements */}
@@ -200,7 +216,7 @@ export default function HomeScreen() {
         {/* Streak Section */}
         <Card style={styles.card}>
           <View style={styles.cardHeader}>
-            <Ionicons name="flame" size={28} color={accentColor} />
+            <Ionicons name="flame" size={28} color={theme.colors.primary} />
             <Text style={styles.cardTitle}>Workout Streaks</Text>
           </View>
           
@@ -234,7 +250,7 @@ export default function HomeScreen() {
         {/* Progress Section */}
         <Card style={styles.card}>
           <View style={styles.cardHeader}>
-            <Ionicons name="barbell" size={28} color={accentColor} />
+            <Ionicons name="barbell" size={28} color={theme.colors.primary} />
             <TouchableOpacity onPress={() => router.push('/home/weightProgress')}>
               <Text style={styles.cardTitle}>Weight Progress</Text>
             </TouchableOpacity>
@@ -271,7 +287,7 @@ export default function HomeScreen() {
         {/* Recent Activity */}
         <Card style={styles.card}>
           <View style={styles.cardHeader}>
-            <Ionicons name="list" size={28} color={accentColor} />
+            <Ionicons name="list" size={28} color={theme.colors.primary} />
             <Text style={styles.cardTitle}>Recent Activity</Text>
           </View>
           

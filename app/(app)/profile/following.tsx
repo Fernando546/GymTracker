@@ -2,12 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { View, FlatList, StyleSheet, TouchableOpacity } from 'react-native';
 import { Text, Avatar, List, useTheme } from 'react-native-paper';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
-import { db } from '../../config/firebase';
+import supabase from '../../config/supabase';
 
 type Following = {
-  uid: string;
-  timestamp: number;
+  following_id: string;
 };
 
 // New component to display detailed following info.
@@ -18,11 +16,13 @@ function FollowingListItem({ uid }: { uid: string }) {
 
   useEffect(() => {
     async function fetchUser() {
-      const docRef = doc(db, 'users', uid);
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        setData(docSnap.data() as { username: string; profile: { name: string; imageUrl?: string } });
-      }
+      const { data } = await supabase
+        .from('users')
+        .select('username, profile')
+        .eq('id', uid)
+        .single();
+
+      if (data) setData({ username: data.username, profile: data.profile });
       setLoadingItem(false);
     }
     fetchUser();
@@ -74,12 +74,12 @@ export default function FollowingScreen() {
       if (!uid) return;
       setLoading(true);
       try {
-        const snapshot = await getDocs(collection(db, 'users', uid, 'following'));
-        const list: Following[] = [];
-        snapshot.forEach((doc) => {
-          list.push(doc.data() as Following);
-        });
-        setFollowing(list);
+        const { data } = await supabase
+          .from('followers')
+          .select('following_id')
+          .eq('follower_id', uid);
+
+        if (data) setFollowing(data.map(item => ({ following_id: item.following_id })));
       } catch (error) {
         console.error("Error fetching following: ", error);
       } finally {
@@ -98,8 +98,8 @@ export default function FollowingScreen() {
       ) : (
         <FlatList
           data={following}
-          keyExtractor={(item) => item.uid}
-          renderItem={({ item }) => <FollowingListItem uid={item.uid} />}
+          keyExtractor={(item) => item.following_id}
+          renderItem={({ item }) => <FollowingListItem uid={item.following_id} />}
         />
       )}
     </View>

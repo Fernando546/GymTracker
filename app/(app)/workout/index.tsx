@@ -3,10 +3,8 @@ import { View, FlatList, StyleSheet, TouchableOpacity } from 'react-native';
 import { Text, useTheme, Button, Card } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { getAuth } from 'firebase/auth';
-import { collection, getDocs, query, orderBy } from 'firebase/firestore';
-import { db } from '../../config/firebase';
 import { router } from 'expo-router';
+import supabase from '../../config/supabase';
 
 type WorkoutExercise = {
   id: string;
@@ -27,34 +25,27 @@ type WorkoutData = {
 };
 
 export default function WorkoutScreen() {
-  const theme = useTheme();
   const [workouts, setWorkouts] = useState<WorkoutData[]>([]);
   const [expandedWorkoutId, setExpandedWorkoutId] = useState<string | null>(null);
-  const auth = getAuth();
   const accentColor = '#7C4DFF';
   const darkBackground = '#080808';
 
   useEffect(() => {
     const fetchWorkouts = async () => {
-      if (!auth.currentUser) return;
-      try {
-        const workoutsRef = collection(db, "users", auth.currentUser.uid, "workouts");
-        // Order workouts by date descending
-        const q = query(workoutsRef, orderBy("date", "desc"));
-        const querySnapshot = await getDocs(q);
-        const fetchedWorkouts: WorkoutData[] = [];
-        querySnapshot.forEach(doc => {
-          // Combine document ID with fetched data
-          fetchedWorkouts.push({ id: doc.id, ...doc.data() } as WorkoutData);
-        });
-        setWorkouts(fetchedWorkouts);
-      } catch (error) {
-        console.error("Error fetching workouts:", error);
-      }
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data } = await supabase
+        .from('workouts')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('date', { ascending: false });
+
+      if (data) setWorkouts(data as WorkoutData[]);
     };
 
     fetchWorkouts();
-  }, [auth.currentUser]);
+  }, []);
 
   const toggleExpand = (id: string) => {
     setExpandedWorkoutId(prev => (prev === id ? null : id));

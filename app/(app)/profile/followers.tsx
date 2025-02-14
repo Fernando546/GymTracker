@@ -2,12 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { View, FlatList, StyleSheet, TouchableOpacity } from 'react-native';
 import { Text, Avatar, List, useTheme } from 'react-native-paper';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
-import { db } from '../../config/firebase';
+import supabase from '../../config/supabase';
 
 type Follower = {
   uid: string;
-  timestamp: number;
+  follower_id: string;
 };
 
 type SearchUser = {
@@ -28,11 +27,13 @@ function FollowerListItem({ uid }: { uid: string }) {
 
   useEffect(() => {
     async function fetchUser() {
-      const docRef = doc(db, 'users', uid);
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        setData(docSnap.data() as { username: string; profile: { name: string; imageUrl?: string } });
-      }
+      const { data } = await supabase
+        .from('users')
+        .select('username, profile')
+        .eq('id', uid)
+        .single();
+
+      if (data) setData({ username: data.username, profile: data.profile });
       setLoadingItem(false);
     }
     fetchUser();
@@ -85,12 +86,18 @@ export default function FollowersScreen() {
       if (!uid) return;
       setLoading(true);
       try {
-        const snapshot = await getDocs(collection(db, 'users', uid, 'followers'));
-        const list: Follower[] = [];
-        snapshot.forEach((doc) => {
-          list.push({ uid: doc.id, timestamp: doc.data().timestamp } as Follower);
-        });
-        setFollowers(list);
+        const { data, error } = await supabase
+          .from('followers')
+          .select('follower_id')
+          .eq('following_id', uid);
+
+        if (data) {
+          const list = data.map(item => ({
+            uid: item.follower_id,
+            follower_id: item.follower_id
+          }));
+          setFollowers(list);
+        }
       } catch (error) {
         console.error("Error fetching followers: ", error);
       } finally {

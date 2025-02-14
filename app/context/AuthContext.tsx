@@ -1,7 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react';
-import { auth, db } from '../config/firebase';
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut as firebaseSignOut } from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
+import supabase from '../config/supabase';
 import { router } from 'expo-router';
 
 type AuthContextType = {
@@ -31,37 +29,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
-    return auth.onAuthStateChanged(setUser);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setUser(session?.user ?? null);
+    });
+    return () => subscription?.unsubscribe();
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    await signInWithEmailAndPassword(auth, email, password);
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    });
+
+    if (data.user?.role !== 'authenticated') {
+      throw new Error('Unauthorized access');
+    }
+
+    if (error) throw error;
   };
 
   const signUp = async (email: string, password: string, username: string) => {
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-    await setDoc(doc(db, 'users', userCredential.user.uid), {
-      email: email,
-      username: username,
-      createdAt: new Date(),
-      profile: {
-        name: username,
-        bio: '',
-        followers: 0,
-        following: 0,
-        achievements: 0,
-        imageUrl: ''
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      throw new Error('Invalid email format');
+    }
+    
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          username
+        }
       }
     });
+
+    if (error) throw error;
   };
 
   const signOut = async () => {
-    try {
-      await firebaseSignOut(auth);
-      router.replace('/');
-    } catch (error) {
-      console.error('Sign out error:', error);
-    }
+    const { error } = await supabase.auth.signOut();
+    if (!error) router.replace('/');
   };
 
   return (

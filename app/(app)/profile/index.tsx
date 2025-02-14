@@ -6,10 +6,9 @@ import { useUserProfile } from '../../hooks/useUserProfile';
 import { useAuth } from '../../context/AuthContext';
 import * as ImagePicker from 'expo-image-picker';
 import { pickImage, uploadProfileImage, updateUserProfile } from '../../services/user';
-import { collection, getCountFromServer } from 'firebase/firestore';
-import { db } from '../../config/firebase';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import supabase from '../../config/supabase';
 
 export default function ProfileScreen() {
   const theme = useTheme();
@@ -105,16 +104,20 @@ export default function ProfileScreen() {
   useFocusEffect(
     React.useCallback(() => {
       async function fetchCounts() {
-        if (!user?.uid) return;
-        try {
-          const followersSnap = await getCountFromServer(collection(db, 'users', user.uid, 'followers'));
-          setFollowersCount(followersSnap.data().count);
+        if (!user?.id) return;
+        
+        const { count: followers } = await supabase
+          .from('followers')
+          .select('*', { count: 'exact', head: true })
+          .eq('following_id', user.id);
 
-          const followingSnap = await getCountFromServer(collection(db, 'users', user.uid, 'following'));
-          setFollowingCount(followingSnap.data().count);
-        } catch (error) {
-          console.error("Failed to fetch counts:", error);
-        }
+        const { count: following } = await supabase
+          .from('followers')
+          .select('*', { count: 'exact', head: true })
+          .eq('follower_id', user.id);
+
+        setFollowersCount(followers || 0);
+        setFollowingCount(following || 0);
       }
       fetchCounts();
     }, [user])

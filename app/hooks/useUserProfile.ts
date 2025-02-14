@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
+import supabase from '../config/supabase';
 
 export type UserProfile = {
   email: string;
@@ -24,24 +23,22 @@ export function useUserProfile() {
   const [error, setError] = useState<string | null>(null);
 
   const fetchProfile = async () => {
-    if (!user) {
-      setProfile(null);
-      setLoading(false);
-      return;
-    }
+    if (!user) return;
 
     try {
-      const docRef = doc(db, 'users', user.uid);
-      const docSnap = await getDoc(docRef);
-      
-      if (docSnap.exists()) {
-        setProfile(docSnap.data() as UserProfile);
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', user.uid)
+        .single();
+
+      if (data) {
+        setProfile(data as UserProfile);
       } else {
         setError('Profile not found');
       }
     } catch (e) {
       setError('Failed to load profile');
-      console.error(e);
     } finally {
       setLoading(false);
     }

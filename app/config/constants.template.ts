@@ -6,4 +6,9 @@ export const FIREBASE_CONFIG = {
   messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
   appId: "YOUR_APP_ID",
   measurementId: "YOUR_MEASUREMENT_ID"
-} as const; 
+} as const;
+
+export const SUPABASE_CONFIG = {
+  URL: "https://your-project.supabase.co",
+  ANON_KEY: "your-anon-key-here"
+}; 
