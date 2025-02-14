@@ -77,11 +77,30 @@ export default function WeightProgress() {
 
   const chartData = {
     labels: entries.slice().reverse().map(e => new Date(e.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })),
-    datasets: [{
-      data: entries.slice().reverse().map(e => e.weight),
-      color: (opacity = 1) => `rgba(124, 77, 255, ${opacity})`,
-      strokeWidth: 2
-    }],
+    datasets: [
+      // Main data line
+      {
+        data: entries.slice().reverse().map(e => e.weight),
+        color: (opacity = 1) => `rgba(124, 77, 255, ${opacity})`,
+        strokeWidth: 2
+      },
+      // Start weight line
+      {
+        data: Array(entries.length).fill(Number(startWeight)),
+        color: () => `rgba(124, 77, 255, 0.5)`,  
+        strokeWidth: 2,
+        withDots: false,
+        dashed: true
+      },
+      // Target weight line
+      {
+        data: Array(entries.length).fill(Number(targetWeight)),
+        color: () => `rgba(255, 204, 1, 0.5)`, 
+        strokeWidth: 2,
+        withDots: false,
+        dashed: true
+      }
+    ],
     yAxisRange: [Math.min(Number(startWeight), Number(targetWeight)) - 2, Math.max(Number(startWeight), Number(targetWeight)) + 2]
   };
 
