@@ -3,7 +3,7 @@ import { View, StyleSheet, ScrollView, Image, ActivityIndicator, Animated, Touch
 import { Card, Text, useTheme, Button } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 import { useFocusEffect } from '@react-navigation/native';
 import supabase from '../../config/supabase';
@@ -17,9 +17,13 @@ export default function HomeScreen() {
   const [targetWeight, setTargetWeight] = useState('');
   const [startWeight, setStartWeight] = useState(0);
   const [progressPercentage, setProgressPercentage] = useState(0);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   // Add theme access from react-native-paper
   const theme = useTheme();
+
+  // Add useLocalSearchParams
+  const params = useLocalSearchParams();
 
   // Update the useEffect for streaks
   useEffect(() => {
@@ -35,9 +39,26 @@ export default function HomeScreen() {
           user_id: user.id
         });
 
+        console.log('Streak calculation results:', {
+          currentStreak: streakData,
+          longestStreak: longestData,
+          workoutDates: await supabase
+            .from('workouts')
+            .select('date')
+            .eq('user_id', user.id)
+            .then(({ data }) => data?.map(d => 
+              new Date(d.date).toLocaleDateString('en-US', {
+                timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+              })
+            ))
+        });
+
         if (!error && !longestError) {
-          setCurrentStreak(streakData);
-          setLongestStreak(longestData);
+          const currentStreakValue = streakData === null ? 0 : streakData;
+          const longestStreakValue = longestData === null ? 0 : longestData;
+
+          setCurrentStreak(currentStreakValue);
+          setLongestStreak(longestStreakValue);
           
           // Update user's longest streak if needed
           const { data: userData } = await supabase
@@ -46,10 +67,10 @@ export default function HomeScreen() {
             .eq('id', user.id)
             .single();
 
-          if (userData?.longest_streak < longestData) {
+          if (longestStreakValue > (userData?.longest_streak || 0)) {
             await supabase
               .from('users')
-              .update({ longest_streak: longestData })
+              .update({ longest_streak: longestStreakValue })
               .eq('id', user.id);
           }
         }
@@ -59,7 +80,7 @@ export default function HomeScreen() {
     };
 
     fetchStreaks();
-  }, [user?.id]);
+  }, [user?.id, refreshKey]);
 
   // Update weight progress useEffect
   useFocusEffect(
@@ -113,6 +134,15 @@ export default function HomeScreen() {
       setProgressPercentage(percentage);
     }
   }, [startWeight, currentWeight, targetWeight]);
+
+  // Add useEffect to watch for refresh
+  useEffect(() => {
+    if (params.refresh) {
+      refreshData();
+    }
+  }, [params.refresh]);
+
+  const refreshData = () => setRefreshKey(prev => prev + 1);
 
   return (
     <LinearGradient

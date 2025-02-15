@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { View, FlatList, StyleSheet, TouchableOpacity } from 'react-native';
 import { Text, useTheme, Button, Card } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import supabase from '../../config/supabase';
+import { useFocusEffect } from '@react-navigation/native';
 
 type WorkoutExercise = {
   id: string;
@@ -30,22 +31,59 @@ export default function WorkoutScreen() {
   const accentColor = '#7C4DFF';
   const darkBackground = '#080808';
 
-  useEffect(() => {
-    const fetchWorkouts = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+  useFocusEffect(
+    useCallback(() => {
+      const fetchWorkouts = async () => {
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (!user) {
+            console.log('No authenticated user');
+            return;
+          }
 
-      const { data } = await supabase
-        .from('workouts')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('date', { ascending: false });
+          const { data, error } = await supabase
+            .from('workouts')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('date', { ascending: false });
 
-      if (data) setWorkouts(data as WorkoutData[]);
-    };
+          if (error) {
+            console.error('Fetch workouts error:', error);
+            return;
+          }
 
-    fetchWorkouts();
-  }, []);
+          console.log('Fetched workouts:', data);
+          setWorkouts(data as WorkoutData[]);
+        } catch (error) {
+          console.error('Failed to fetch workouts:', error);
+        }
+      };
+
+      // Get user for the real-time subscription
+      const initializeChannel = async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        const channel = supabase
+          .channel('workouts')
+          .on('postgres_changes', {
+            event: '*',
+            schema: 'public',
+            table: 'workouts',
+            filter: `user_id=eq.${user?.id}`
+          }, () => fetchWorkouts())
+          .subscribe();
+
+        return channel;
+      };
+
+      fetchWorkouts();
+      const channel = initializeChannel();
+
+      return () => {
+        channel.then(c => supabase.removeChannel(c));
+      };
+    }, [])
+  );
 
   const toggleExpand = (id: string) => {
     setExpandedWorkoutId(prev => (prev === id ? null : id));

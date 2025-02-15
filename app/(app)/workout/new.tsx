@@ -72,12 +72,15 @@ export default function NewWorkoutScreen() {
         distance: ex.distance ? parseFloat(ex.distance) : null
       }));
 
+      const timeZoneOffset = new Date().getTimezoneOffset() * 60000;
+      const localISOTime = new Date(Date.now() - timeZoneOffset).toISOString();
+
       const { data, error } = await supabase
         .from('workouts')
         .insert({
           user_id: user.id,
           exercises: formattedExercises,
-          date: new Date().toISOString()
+          date: localISOTime
         })
         .select();
 
@@ -92,7 +95,10 @@ export default function NewWorkoutScreen() {
       }
 
       console.log("Successfully created workout:", data);
-      router.replace('/(app)/workout');
+      router.push({
+        pathname: '/(app)/workout',
+        params: { refresh: Date.now() }
+      });
     } catch (err) {
       console.error("Error saving workout", err);
       showAlert("Error", "Failed to save workout", [
