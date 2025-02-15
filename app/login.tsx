@@ -52,8 +52,11 @@ export default function Login() {
           </View>
           <TextInput
             label="Email"
+            placeholder="Enter your email"
             value={email}
             onChangeText={setEmail}
+            autoCapitalize="none"
+            keyboardType="email-address"
             mode="outlined"
             theme={{ colors: { primary: accentColor } }}
             style={styles.input}
