@@ -8,69 +8,11 @@ import { useAuth } from '../../context/AuthContext';
 import { useFocusEffect } from '@react-navigation/native';
 import supabase from '../../config/supabase';
 
-// Helper function to calculate the current streak from an array of workouts.
-function calculateStreak(workouts: { date: string }[]): number {
-  const dayMs = 24 * 60 * 60 * 1000;
-  const datesSet = new Set<number>();
-
-  // Convert workout dates to timestamps and add to set
-  workouts.forEach(w => {
-    const d = new Date(w.date);
-    d.setHours(0, 0, 0, 0);
-    datesSet.add(d.getTime());
-  });
-
-  if (datesSet.size === 0) return 0;
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const todayMs = today.getTime();
-
-  let streak = 0;
-  let currentCheckDate = todayMs;
-
-  // If no workout today, check from yesterday
-  if (!datesSet.has(todayMs)) {
-    currentCheckDate = todayMs - dayMs;
-  }
-
-  // Count consecutive days with workouts
-  while (datesSet.has(currentCheckDate)) {
-    streak++;
-    currentCheckDate -= dayMs;
-  }
-
-  return streak;
-}
-
-// Helper function to calculate the longest streak from an array of workouts.
-function calculateLongestStreak(workouts: { date: string }[]): number {
-  const dayMs = 24 * 60 * 60 * 1000;
-  const dates = workouts.map(w => {
-    const d = new Date(w.date);
-    d.setHours(0, 0, 0, 0);
-    return d.getTime();
-  });
-  const uniqueDates = Array.from(new Set(dates)).sort((a, b) => a - b);
-  if (uniqueDates.length === 0) return 0;
-  let longest = 1;
-  let current = 1;
-  for (let i = 1; i < uniqueDates.length; i++) {
-    if (uniqueDates[i] - uniqueDates[i - 1] === dayMs) {
-      current++;
-    } else {
-      current = 1;
-    }
-    longest = Math.max(longest, current);
-  }
-  return longest;
-}
 
 export default function HomeScreen() {
   const { user } = useAuth();
   const [currentStreak, setCurrentStreak] = useState(0);
   const [longestStreak, setLongestStreak] = useState(0);
-  const [workouts, setWorkouts] = useState<{ date: string }[]>([]);
   const [currentWeight, setCurrentWeight] = useState('');
   const [targetWeight, setTargetWeight] = useState('');
   const [startWeight, setStartWeight] = useState(0);
@@ -79,105 +21,75 @@ export default function HomeScreen() {
   // Add theme access from react-native-paper
   const theme = useTheme();
 
-  // Real-time streak listener
+  // Update the useEffect for streaks
   useEffect(() => {
-    const fetchStreak = async () => {
-      if (!user?.uid) return;
-      
-      const { data: streakData } = await supabase.rpc('calculate_streak', {
-        user_id: user.uid,
-        target_days: 7
-      });
-      setCurrentStreak(streakData.streak_length);
-      setLongestStreak(streakData.longest_streak);
-    };
-    fetchStreak();
-  }, [user?.uid]);
+    const fetchStreaks = async () => {
+      if (!user?.id) return;
 
-  useEffect(() => {
-    const checkAchievements = async () => {
-      if (!user?.uid) return;
-      
-      const { data } = await supabase.functions.invoke('achievements', {
-        body: { userId: user.uid, type: 'weekly_streak' }
-      });
-      setCurrentStreak(data.streak_length);
-      setLongestStreak(data.longest_streak);
-    };
-    checkAchievements();
-  }, [user?.uid]);
-
-  useEffect(() => {
-    const fetchWorkouts = async () => {
-      if (!user?.uid) return;
-      
       try {
-        const { data: fetchedWorkouts, error } = await supabase
-          .from('workouts')
-          .select('date')
-          .eq('user_id', user.uid)
-          .order('date', { ascending: false });
-
-        if (error) throw error;
-
-        setWorkouts(fetchedWorkouts || []);
-
-        const calculatedStreak = calculateStreak(fetchedWorkouts);
-        setCurrentStreak(calculatedStreak);
-
-        const computedLongestStreak = calculateLongestStreak(fetchedWorkouts);
-        setLongestStreak(computedLongestStreak);
-
-        const { data: userData, error: userError } = await supabase
-          .from('users')
-          .select('longest_streak')
-          .eq('id', user.uid)
-          .single();
+        const { data: streakData, error } = await supabase.rpc('get_current_streak', {
+          user_id: user.id
+        });
         
-        const storedLongest = userData?.longest_streak || 0;
+        const { data: longestData, error: longestError } = await supabase.rpc('get_longest_streak', {
+          user_id: user.id
+        });
 
-        if (computedLongestStreak > storedLongest) {
-          await supabase
+        if (!error && !longestError) {
+          setCurrentStreak(streakData);
+          setLongestStreak(longestData);
+          
+          // Update user's longest streak if needed
+          const { data: userData } = await supabase
             .from('users')
-            .update({ longest_streak: computedLongestStreak })
-            .eq('id', user.uid);
+            .select('longest_streak')
+            .eq('id', user.id)
+            .single();
+
+          if (userData?.longest_streak < longestData) {
+            await supabase
+              .from('users')
+              .update({ longest_streak: longestData })
+              .eq('id', user.id);
+          }
         }
       } catch (error) {
-        console.error("Error fetching workouts:", error);
+        console.error("Error fetching streaks:", error);
       }
     };
 
-    fetchWorkouts();
-  }, [user?.uid]);
+    fetchStreaks();
+  }, [user?.id]);
 
+  // Update weight progress useEffect
   useFocusEffect(
     useCallback(() => {
       const fetchWeightData = async () => {
-        if (!user?.uid) return;
+        if (!user?.id) return;
         
         try {
-          // Get latest weight entry
-          const { data: weightData, error } = await supabase
-            .from('weight_entries')
-            .select('weight')
-            .eq('user_id', user.uid)
-            .order('timestamp', { ascending: false })
-            .limit(1);
-          
-          if (weightData && weightData.length > 0) {
-            const latest = weightData[0].weight;
-            setCurrentWeight(latest.toString());
-          }
-
-          // Get goals
-          const { data: goalsData, error: goalsError } = await supabase
+          // Get weight goals
+          const { data: goalsData } = await supabase
             .from('weight_goals')
             .select('current, target')
-            .eq('user_id', user.uid)
+            .eq('user_id', user.id)
             .single();
+
           if (goalsData) {
-            setStartWeight(Number(goalsData.current));
+            setStartWeight(goalsData.current);
             setTargetWeight(goalsData.target.toString());
+          }
+
+          // Get latest weight entry
+          const { data: weightData } = await supabase
+            .from('weight_entries')
+            .select('weight')
+            .eq('user_id', user.id)
+            .order('timestamp', { ascending: false })
+            .limit(1);
+
+          if (weightData?.[0]?.weight) {
+            setCurrentWeight(weightData[0].weight.toString());
           }
         } catch (error) {
           console.error("Error fetching weight data:", error);
@@ -185,7 +97,7 @@ export default function HomeScreen() {
       };
 
       fetchWeightData();
-    }, [user?.uid])
+    }, [user?.id])
   );
 
   useEffect(() => {
@@ -194,9 +106,9 @@ export default function HomeScreen() {
       const target = parseFloat(targetWeight);
       const current = parseFloat(currentWeight);
       
-      const total = start - target;
-      const progress = start - current;
-      const percentage = Math.min(Math.max((progress / total) * 100, 0), 100);
+      const totalChange = Math.abs(start - target);
+      const progress = Math.abs(start - current);
+      const percentage = Math.min(Math.max((progress / totalChange) * 100, 0), 100);
       
       setProgressPercentage(percentage);
     }
@@ -292,14 +204,14 @@ export default function HomeScreen() {
           </View>
           
           <View style={styles.activityContainer}>
-            {workouts.slice(0, 3).map((workout, index) => (
+            {/* workouts.slice(0, 3).map((workout, index) => (
               <View key={index} style={styles.activityItem}>
                 <Ionicons name="checkmark-circle" size={20} color="#7C4DFF" />
                 <Text style={styles.activityText}>
                   Workout on {new Date(workout.date).toLocaleDateString()}
                 </Text>
               </View>
-            ))}
+            )) */}
           </View>
         </Card>
       </View>
