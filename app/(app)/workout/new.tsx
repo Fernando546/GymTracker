@@ -50,23 +50,49 @@ export default function NewWorkoutScreen() {
       return;
     }
 
-    const auth = getAuth();
-    const workoutData = {
-      exercises,
-      date: new Date().toISOString(),
-      userId: auth.currentUser?.uid, // Actual user uid from Firebase Auth
-    };
-
     try {
-      const { error } = await supabase
+      // Get current user from Supabase
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (!user) {
+        showAlert("Not Authenticated", "Please sign in to save workouts", [
+          { text: "OK", onPress: () => setAlertVisible(false) }
+        ]);
+        return;
+      }
+
+      // Transform exercises data for Supabase
+      const formattedExercises = exercises.map(ex => ({
+        name: ex.name,
+        type: ex.type,
+        weight: ex.weight ? parseFloat(ex.weight) : null,
+        reps: ex.reps ? parseInt(ex.reps) : null,
+        sets: ex.sets ? parseInt(ex.sets) : null,
+        time: ex.time ? parseFloat(ex.time) : null,
+        distance: ex.distance ? parseFloat(ex.distance) : null
+      }));
+
+      const { data, error } = await supabase
         .from('workouts')
         .insert({
-          exercises,
-          date: new Date().toISOString(),
-          user_id: auth.currentUser?.uid
-        });
+          user_id: user.id,
+          exercises: formattedExercises,
+          date: new Date().toISOString()
+        })
+        .select();
 
-      if (!error) router.replace('/(app)/workout');
+      if (error) {
+        console.error("Supabase error details:", {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        });
+        throw error;
+      }
+
+      console.log("Successfully created workout:", data);
+      router.replace('/(app)/workout');
     } catch (err) {
       console.error("Error saving workout", err);
       showAlert("Error", "Failed to save workout", [
