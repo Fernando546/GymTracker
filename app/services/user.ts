@@ -1,6 +1,7 @@
 import supabase from '../config/supabase';
 import * as ImagePicker from 'expo-image-picker';
-import { uploadToCloudinary } from './imageUpload';
+import * as FileSystem from 'expo-file-system';
+import { decode } from 'base64-arraybuffer';
 
 export type UserProfile = {
   id: string;
@@ -20,11 +21,19 @@ export const getUserProfile = async (userId: string): Promise<UserProfile> => {
   return data?.profile;
 };
 
-export const updateUserProfile = async (userId: string, updates: Partial<Pick<UserProfile, 'username'> & { profile: Partial<UserProfile['profile']> }>) => {
+export const updateUserProfile = async (
+  userId: string,
+  updates: Partial<{
+    username?: string;
+    name?: string;
+    bio?: string;
+    image_url?: string;
+  }>
+) => {
   const { error } = await supabase
-    .from('users')
+    .from('profiles')
     .update(updates)
-    .eq('id', userId);
+    .eq('user_id', userId);
 
   if (error) throw error;
 };
@@ -34,31 +43,55 @@ export async function pickImage() {
     mediaTypes: ImagePicker.MediaTypeOptions.Images,
     allowsEditing: true,
     aspect: [1, 1],
-    quality: 0.5,
-    base64: true,
+    quality: 0.8,
   });
 
-  if (!result.canceled) {
+  if (!result.canceled && result.assets?.[0]?.uri) {
     return result.assets[0].uri;
   }
   return null;
 }
 
-export async function uploadProfileImage(userId: string, uri: string) {
+export const uploadProfileImage = async (userId: string, uri: string) => {
   try {
-    // Upload to Cloudinary first
-    const imageUrl = await uploadToCloudinary(uri);
+    // Convert URI to base64
+    const base64Data = await FileSystem.readAsStringAsync(uri, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+
+    const fileExt = uri.split('.').pop() || 'jpg';
+    const fileName = `${userId}-${Date.now()}.${fileExt}`;
+    const contentType = `image/${fileExt === 'png' ? 'png' : 'jpeg'}`;
+
+    // Upload to Supabase Storage
+    const { data, error } = await supabase.storage
+      .from('avatars')
+      .upload(fileName, decode(base64Data), {
+        contentType,
+        upsert: true
+      });
+
+    if (error) throw error;
+
+    // Get public URL
+    const { data: { publicUrl } } = supabase.storage
+      .from('avatars')
+      .getPublicUrl(data.path);
+
+    // Update profile
+    const { error: updateError } = await supabase
+      .from('profiles')
+      .update({ image_url: publicUrl })
+      .eq('user_id', userId);
+
+    if (updateError) throw updateError;
     
-    // Supabase does not support updating a single document directly.
-    // You would need to use a SQL query to update the profile image.
-    // This is a placeholder and should be replaced with the actual implementation.
-    
-    return imageUrl;
+    return publicUrl;
   } catch (error) {
-    console.error('Error updating profile image:', error);
-    throw error;
+    console.error('Upload error:', error);
+    throw new Error('Failed to upload image');
   }
-}
+};
 
 export const followUser = async (targetUid: string) => {
   const { data: { user } } = await supabase.auth.getUser();

@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import supabase from '../../config/supabase';
 import { useFocusEffect } from '@react-navigation/native';
+import { useAuth } from '../../context/AuthContext';
 
 type WorkoutExercise = {
   id: string;
@@ -30,12 +31,12 @@ export default function WorkoutScreen() {
   const [expandedWorkoutId, setExpandedWorkoutId] = useState<string | null>(null);
   const accentColor = '#7C4DFF';
   const darkBackground = '#080808';
+  const { user } = useAuth();
 
   useFocusEffect(
     useCallback(() => {
       const fetchWorkouts = async () => {
         try {
-          const { data: { user } } = await supabase.auth.getUser();
           if (!user) {
             console.log('No authenticated user');
             return;
@@ -82,7 +83,7 @@ export default function WorkoutScreen() {
       return () => {
         channel.then(c => supabase.removeChannel(c));
       };
-    }, [])
+    }, [user])
   );
 
   const toggleExpand = (id: string) => {

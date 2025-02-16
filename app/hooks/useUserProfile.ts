@@ -4,29 +4,23 @@ import supabase from '../config/supabase';
 import { useQuery } from '@tanstack/react-query';
 
 export type UserProfile = {
-  id: string;
-  email: string;
-  username: string;
-  created_at: string;
-  profile: {
-    bio?: string;
-    image_url?: string;
-  } | null;
+  user_id: string;
+  username?: string;
+  name?: string;
+  bio?: string;
+  image_url?: string;
 };
 
 export function useUserProfile() {
   const { user } = useAuth();
   
-  const { data, error, refetch } = useQuery({
+  const { data, error, refetch, isLoading } = useQuery({
     queryKey: ['userProfile', user?.id],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('users')
-        .select(`
-          *,
-          profile:profiles!user_id(*)
-        `)
-        .eq('id', user.id)
+        .from('profiles')
+        .select('*')
+        .eq('user_id', user.id)
         .single();
 
       if (error) throw error;
@@ -35,9 +29,9 @@ export function useUserProfile() {
   });
 
   return { 
-    profile: data,
-    error,
+    profile: data, 
+    error, 
     refetch,
-    loading: !data && !error
+    loading: isLoading 
   };
 } 

@@ -5,7 +5,7 @@ import { router } from 'expo-router';
 type AuthContextType = {
   user: any;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, username: string) => Promise<void>;
+  signUp: (email: string, password: string, username: string) => Promise<User | null>;
   signOut: () => Promise<void>;
 };
 
@@ -25,6 +25,14 @@ type UserProfile = {
   }
 };
 
+// Add User type definition
+type User = {
+  id: string;
+  email?: string;
+  role?: string;
+  // Add other user properties as needed
+};
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<any>(null);
 
@@ -41,29 +49,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       password
     });
 
-    if (data.user?.role !== 'authenticated') {
-      throw new Error('Unauthorized access');
-    }
-
     if (error) throw error;
   };
 
   const signUp = async (email: string, password: string, username: string) => {
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      throw new Error('Invalid email format');
-    }
-    
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          username
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            username
+          }
         }
-      }
-    });
+      });
 
-    if (error) throw error;
+      if (error) throw error;
+      return data.user;
+
+    } catch (error) {
+      console.error('Registration error:', error);
+      throw new Error('Registration failed. Please try different credentials');
+    }
   };
 
   const signOut = async () => {
