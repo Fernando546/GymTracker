@@ -1,52 +1,43 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import supabase from '../config/supabase';
+import { useQuery } from '@tanstack/react-query';
 
 export type UserProfile = {
+  id: string;
   email: string;
   username: string;
-  createdAt: Date;
+  created_at: string;
   profile: {
-    name: string;
-    bio: string;
-    followers: number;
-    following: number;
-    imageUrl?: string;
-    achievements: number;
-  }
+    bio?: string;
+    image_url?: string;
+  } | null;
 };
 
 export function useUserProfile() {
   const { user } = useAuth();
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchProfile = async () => {
-    if (!user) return;
-
-    try {
+  
+  const { data, error, refetch } = useQuery({
+    queryKey: ['userProfile', user?.id],
+    queryFn: async () => {
       const { data, error } = await supabase
         .from('users')
-        .select('*')
-        .eq('id', user.uid)
+        .select(`
+          *,
+          profile:profiles!user_id(*)
+        `)
+        .eq('id', user.id)
         .single();
 
-      if (data) {
-        setProfile(data as UserProfile);
-      } else {
-        setError('Profile not found');
-      }
-    } catch (e) {
-      setError('Failed to load profile');
-    } finally {
-      setLoading(false);
+      if (error) throw error;
+      return data as UserProfile;
     }
+  });
+
+  return { 
+    profile: data,
+    error,
+    refetch,
+    loading: !data && !error
   };
-
-  useEffect(() => {
-    fetchProfile();
-  }, [user]);
-
-  return { profile, loading, error, refetch: fetchProfile };
 } 

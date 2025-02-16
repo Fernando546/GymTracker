@@ -2,14 +2,14 @@ import supabase from '../config/supabase';
 import * as ImagePicker from 'expo-image-picker';
 import { uploadToCloudinary } from './imageUpload';
 
-export interface UserProfile {
-  name: string;
-  bio: string;
-  imageUrl: string | null;
-  followers: number;
-  following: number;
-  achievements: number;
-}
+export type UserProfile = {
+  id: string;
+  username: string;
+  profile: {
+    bio?: string;
+    image_url?: string;
+  };
+};
 
 export const getUserProfile = async (userId: string): Promise<UserProfile> => {
   const { data, error } = await supabase
@@ -20,10 +20,13 @@ export const getUserProfile = async (userId: string): Promise<UserProfile> => {
   return data?.profile;
 };
 
-export const updateUserProfile = async (userId: string, profile: Partial<UserProfile>) => {
-  // Supabase does not support updating a single document directly.
-  // You would need to use a SQL query to update the profile.
-  // This is a placeholder and should be replaced with the actual implementation.
+export const updateUserProfile = async (userId: string, updates: Partial<Pick<UserProfile, 'username'> & { profile: Partial<UserProfile['profile']> }>) => {
+  const { error } = await supabase
+    .from('users')
+    .update(updates)
+    .eq('id', userId);
+
+  if (error) throw error;
 };
 
 export async function pickImage() {

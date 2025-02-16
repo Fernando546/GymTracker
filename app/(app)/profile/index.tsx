@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator, Animated } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
 import { Text, useTheme, Button, Card, Avatar, IconButton, TextInput as PaperTextInput, Button as PaperButton } from 'react-native-paper';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useUserProfile } from '../../hooks/useUserProfile';
@@ -17,7 +17,7 @@ export default function ProfileScreen() {
   const router = useRouter();
   const [isUploading, setIsUploading] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
-  const [newName, setNewName] = useState(profile?.profile?.name || '');
+  const [newName, setNewName] = useState(profile?.username || '');
   const [isEditingBio, setIsEditingBio] = useState(false);
   const [newBio, setNewBio] = useState(profile?.profile?.bio || '');
   const [followersCount, setFollowersCount] = useState<number>(0);
@@ -76,8 +76,7 @@ export default function ProfileScreen() {
       if (!user) return;
       setIsEditingName(false);
       await updateUserProfile(user.uid, {
-        ...profile?.profile,
-        name: newName.trim()
+        username: newName.trim()
       });
       await refetch();
     } catch (error) {
@@ -91,8 +90,9 @@ export default function ProfileScreen() {
       if (!user) return;
       setIsEditingBio(false);
       await updateUserProfile(user.uid, {
-        ...profile?.profile,
-        bio: newBio.trim()
+        profile: {
+          bio: newBio.trim()
+        }
       });
       await refetch();
     } catch (error) {
@@ -137,7 +137,7 @@ export default function ProfileScreen() {
   if (error) {
     return (
       <View style={styles.container}>
-        <Text>Error: {error}</Text>
+        <Text>Error: {error?.message || 'Unknown error'}</Text>
       </View>
     );
   }
@@ -160,9 +160,9 @@ export default function ProfileScreen() {
                 onPress={handleImagePick}
                 disabled={isUploading}
               >
-                {profile?.profile?.imageUrl ? (
+                {profile?.profile?.image_url ? (
                   <Image 
-                    source={{ uri: profile.profile.imageUrl }} 
+                    source={{ uri: profile.profile.image_url }} 
                     style={styles.avatar}
                   />
                 ) : (
@@ -196,12 +196,12 @@ export default function ProfileScreen() {
 
                     <TouchableOpacity 
                       onPress={() => {
-                        setNewName(profile?.profile?.name || '');
+                        setNewName(profile?.username || '');
                         setIsEditingName(true);
                       }}
                     >
                       <Text style={[styles.name, { color: theme.colors.onBackground, textAlign: 'center' }]}>
-                        {profile?.profile?.name || 'Add name'}
+                        {profile?.username || 'Add name'}
                       </Text>
                     </TouchableOpacity>
 
@@ -209,7 +209,7 @@ export default function ProfileScreen() {
                       icon="pencil" 
                       size={16}
                       onPress={() => {
-                        setNewName(profile?.profile?.name || '');
+                        setNewName(profile?.username || '');
                         setIsEditingName(true);
                       }}
                       style={{ marginLeft: 4 }}
@@ -285,14 +285,6 @@ export default function ProfileScreen() {
                   </Text>
                 </View>
               </TouchableOpacity>
-              <View style={styles.statItem}>
-                <Text style={[styles.statNumber, { color: '#7C4DFF' }]}>
-                  {profile?.profile?.achievements ?? 0}
-                </Text>
-                <Text style={[styles.statLabel, { color: theme.colors.onBackground }]}>
-                  Achievements
-                </Text>
-              </View>
             </View>
             <View style={styles.followButtonContainer}>
               <Button
