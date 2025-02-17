@@ -10,10 +10,8 @@ import { router } from 'expo-router';
 interface User {
   id: string;
   username: string;
-  profile?: {
-    name?: string;
-    imageUrl?: string;
-  };
+  name?: string;
+  imageUrl?: string;
 }
 
 export default function SearchScreen() {
@@ -39,17 +37,18 @@ export default function SearchScreen() {
     setLoading(true);
     try {
       const { data, error } = await supabase
-        .from('users')
-        .select('id, username, profile')
+        .from('profiles')
+        .select('user_id, username, name, image_url')
         .ilike('username', `${searchText}%`);
 
       const users = data
-        ?.filter(dbUser => dbUser.id !== user?.id)
-        .map(dbUser => ({
-          id: dbUser.id,
-          username: dbUser.username,
-          profile: dbUser.profile
-        } as User)) || [];
+        ?.filter(profile => profile.user_id !== user?.id)
+        .map(profile => ({
+          id: profile.user_id,
+          username: profile.username,
+          name: profile.name,
+          imageUrl: profile.image_url
+        })) || [];
         
       setResults(users);
     } catch (error) {
@@ -114,14 +113,13 @@ export default function SearchScreen() {
           <View style={styles.userCard}>
             <Avatar.Image 
               size={50} 
-              source={{ uri: item.profile?.imageUrl }} 
+              source={{ uri: item.imageUrl }} 
               style={styles.avatar}
-              theme={{ colors: { primary: '#7C4DFF' }}}
             />
             <View style={styles.userInfo}>
               <Text style={styles.username}>@{item.username}</Text>
-              {item.profile?.name && (
-                <Text style={styles.name}>{item.profile.name}</Text>
+              {item.name && (
+                <Text style={styles.name}>{item.name}</Text>
               )}
             </View>
             <Button
