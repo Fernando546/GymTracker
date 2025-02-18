@@ -8,12 +8,25 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import supabase from '../../config/supabase';
 
+interface User {
+  user_id: string;
+  username: string;
+  name?: string;
+  image_url?: string;
+  bio?: string;
+  profile: {
+    name?: string;
+    bio?: string;
+    imageUrl?: string;
+  };
+}
+
 export default function UserProfileScreen() {
   const theme = useTheme();
   const { uid } = useLocalSearchParams<{ uid: string }>();
   const router = useRouter();
   const { user } = useAuth();
-  const [userData, setUserData] = useState<any>(null);
+  const [userData, setUserData] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>('');
   const [followersCount, setFollowersCount] = useState<number>(0);
@@ -25,13 +38,22 @@ export default function UserProfileScreen() {
       if (!uid) return;
       try {
         const { data, error } = await supabase
-          .from('users')
-          .select('*')
-          .eq('id', uid)
+          .from('profiles')
+          .select('user_id, username, name, image_url, bio')
+          .eq('user_id', uid)
           .single();
 
-        if (data) setUserData(data);
-        else setError('Profile not found');
+        if (data) {
+          setUserData({
+            ...data,
+            username: data.username,
+            profile: {
+              name: data.name,
+              bio: data.bio,
+              imageUrl: data.image_url
+            }
+          });
+        } else setError('Profile not found');
       } catch (err) {
         console.error(err);
         setError('Failed to load profile');
@@ -111,7 +133,7 @@ export default function UserProfileScreen() {
   }
 
   const { username, profile } = userData;
-  const isCurrentUser = user?.uid === uid;
+  const isCurrentUser = user?.id === uid;
 
   const handleFollow = async () => {
     try {
@@ -217,17 +239,9 @@ export default function UserProfileScreen() {
               </Text>
             </View>
           </TouchableOpacity>
-          <View style={styles.statItem}>
-            <Text style={[styles.statNumber, { color: '#7C4DFF' }]}>
-              {profile?.achievements ?? 0}
-            </Text>
-            <Text style={[styles.statLabel, { color: theme.colors.onBackground }]}>
-              Achievements
-            </Text>
-          </View>
         </View>
 
-        {user?.uid === uid ? (
+        {user?.id === uid ? (
           <View style={styles.followButtonContainer}>
             <Button
               mode="contained"
