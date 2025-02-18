@@ -26,61 +26,63 @@ export default function HomeScreen() {
   const params = useLocalSearchParams();
 
   // Update the useEffect for streaks
-  useEffect(() => {
-    const fetchStreaks = async () => {
-      if (!user?.id) return;
+  useFocusEffect(
+    useCallback(() => {
+      const fetchStreaks = async () => {
+        if (!user?.id) return;
 
-      try {
-        const { data: streakData, error } = await supabase.rpc('get_current_streak', {
-          user_id: user.id
-        });
-        
-        const { data: longestData, error: longestError } = await supabase.rpc('get_longest_streak', {
-          user_id: user.id
-        });
-
-        console.log('Streak calculation results:', {
-          currentStreak: streakData,
-          longestStreak: longestData,
-          workoutDates: await supabase
-            .from('workouts')
-            .select('date')
-            .eq('user_id', user.id)
-            .then(({ data }) => data?.map(d => 
-              new Date(d.date).toLocaleDateString('en-US', {
-                timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
-              })
-            ))
-        });
-
-        if (!error && !longestError) {
-          const currentStreakValue = streakData === null ? 0 : streakData;
-          const longestStreakValue = longestData === null ? 0 : longestData;
-
-          setCurrentStreak(currentStreakValue);
-          setLongestStreak(longestStreakValue);
+        try {
+          const { data: streakData, error } = await supabase.rpc('get_current_streak', {
+            user_id: user.id
+          });
           
-          // Update user's longest streak if needed
-          const { data: userData } = await supabase
-            .from('users')
-            .select('longest_streak')
-            .eq('id', user.id)
-            .single();
+          const { data: longestData, error: longestError } = await supabase.rpc('get_longest_streak', {
+            user_id: user.id
+          });
 
-          if (longestStreakValue > (userData?.longest_streak || 0)) {
-            await supabase
-              .from('users')
-              .update({ longest_streak: longestStreakValue })
-              .eq('id', user.id);
+          console.log('Streak calculation results:', {
+            currentStreak: streakData,
+            longestStreak: longestData,
+            workoutDates: await supabase
+              .from('workouts')
+              .select('date')
+              .eq('user_id', user.id)
+              .then(({ data }) => data?.map(d => 
+                new Date(d.date).toLocaleDateString('en-US', {
+                  timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+                })
+              ))
+          });
+
+          if (!error && !longestError) {
+            const currentStreakValue = streakData === null ? 0 : streakData;
+            const longestStreakValue = longestData === null ? 0 : longestData;
+
+            setCurrentStreak(currentStreakValue);
+            setLongestStreak(longestStreakValue);
+            
+            // Update user's longest streak if needed
+            const { data: profileData } = await supabase
+              .from('profiles')
+              .select('longest_streak')
+              .eq('user_id', user.id)
+              .single();
+
+            if (longestStreakValue > (profileData?.longest_streak || 0)) {
+              await supabase
+                .from('profiles')
+                .update({ longest_streak: longestStreakValue })
+                .eq('user_id', user.id);
+            }
           }
+        } catch (error) {
+          console.error("Error fetching streaks:", error);
         }
-      } catch (error) {
-        console.error("Error fetching streaks:", error);
-      }
-    };
+      };
 
-    fetchStreaks();
-  }, [user?.id, refreshKey]);
+      fetchStreaks();
+    }, [user?.id])
+  );
 
   // Update weight progress useEffect
   useFocusEffect(
@@ -143,6 +145,23 @@ export default function HomeScreen() {
   }, [params.refresh]);
 
   const refreshData = () => setRefreshKey(prev => prev + 1);
+
+  // Add real-time listener
+  useEffect(() => {
+    const channel = supabase.channel('workout-changes')
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'workouts'
+      }, () => {
+        setRefreshKey(prev => prev + 1);
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   return (
     <LinearGradient
