@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, TextInput, BackHandler } from 'react-native';
 import { Text, useTheme, Button, Card, IconButton } from 'react-native-paper';
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
-import { getAuth } from 'firebase/auth';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import CustomAlert from '@/components/CustomAlert';

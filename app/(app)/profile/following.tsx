@@ -11,7 +11,8 @@ type Following = {
 
 // New component to display detailed following info.
 function FollowingListItem({ uid }: { uid: string }) {
-  const [data, setData] = useState<{
+  const router = useRouter();
+  const [data, setData] = useState<{ //
     user_id: string;
     username: string;
     name?: string;
@@ -22,7 +23,7 @@ function FollowingListItem({ uid }: { uid: string }) {
     async function fetchUser() {
       const { data } = await supabase
         .from('profiles')
-        .select('user_id, username, name, image_url')
+        .select('user_id, username, name, image_url') 
         .eq('user_id', uid)
         .single();
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Image, ActivityIndicator, TouchableOpacity, BackHandler } from 'react-native';
+import { View, StyleSheet, Image, ActivityIndicator, TouchableOpacity, BackHandler } from 'react-native';
 import { Text, useTheme, Button, Avatar, IconButton, Card } from 'react-native-paper';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';

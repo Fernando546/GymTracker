@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, FlatList, StyleSheet, TouchableOpacity, BackHandler } from 'react-native';
-import { TextInput, Text, Button, useTheme, IconButton } from 'react-native-paper';
+import { TextInput, Text, Button, IconButton } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -21,7 +21,6 @@ const exercisesData: Exercise[] = [
 ];
 
 export default function ExerciseSearch() {
-  const theme = useTheme();
   const router = useRouter();
   const params = useLocalSearchParams<{ currentExercises?: string }>();
   const [searchText, setSearchText] = useState('');

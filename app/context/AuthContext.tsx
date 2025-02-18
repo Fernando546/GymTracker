@@ -11,20 +11,6 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
 
-type UserProfile = {
-  email: string;
-  username: string;
-  createdAt: Date;
-  profile: {
-    name: string;
-    bio: string;
-    followers: number;
-    following: number;
-    achievements: number;
-    imageUrl: string;
-  }
-};
-
 // Add User type definition
 type User = {
   id: string;

@@ -13,7 +13,7 @@ export type UserProfile = {
 };
 
 export const getUserProfile = async (userId: string): Promise<UserProfile> => {
-  const { data, error } = await supabase
+  const { data } = await supabase
     .from('users')
     .select('profile')
     .eq('id', userId)

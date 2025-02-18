@@ -1,6 +1,6 @@
 import { Link } from 'expo-router';
 import { StyleSheet, View, Linking } from 'react-native';
-import { Button, Text, useTheme } from 'react-native-paper';
+import { Button, Text } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 

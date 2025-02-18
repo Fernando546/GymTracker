@@ -1,6 +1,6 @@
 import { Link, router } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
-import { Button, Text, TextInput, useTheme } from 'react-native-paper';
+import { Button, Text, TextInput } from 'react-native-paper';
 import { useState } from 'react';
 import { useAuth } from './context/AuthContext';
 import { LinearGradient } from 'expo-linear-gradient';

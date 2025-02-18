@@ -1,5 +1,5 @@
 import { View, StyleSheet, ScrollView, Dimensions } from 'react-native';
-import { Text, TextInput, Button, useTheme } from 'react-native-paper';
+import { Text, TextInput, Button } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
 import { LineChart } from 'react-native-chart-kit';
 import { useState, useEffect } from 'react';
