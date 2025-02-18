@@ -2,12 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, TextInput, BackHandler } from 'react-native';
 import { Text, useTheme, Button, Card, IconButton } from 'react-native-paper';
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
-import { collection, addDoc } from 'firebase/firestore';
-import { db } from '../../config/firebase';
 import { getAuth } from 'firebase/auth';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import CustomAlert from '@/components/CustomAlert';
+import supabase from '../../config/supabase';
 
 type WorkoutExercise = {
   id: string;
@@ -51,20 +50,55 @@ export default function NewWorkoutScreen() {
       return;
     }
 
-    const auth = getAuth();
-    const workoutData = {
-      exercises,
-      date: new Date().toISOString(),
-      userId: auth.currentUser?.uid, // Actual user uid from Firebase Auth
-    };
-
     try {
-      await addDoc(
-        collection(db, "users", auth.currentUser?.uid as string, "workouts"),
-        workoutData
-      );
-      console.log("Workout saved:", workoutData);
-      router.replace('/(app)/workout');
+      // Get current user from Supabase
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (!user) {
+        showAlert("Not Authenticated", "Please sign in to save workouts", [
+          { text: "OK", onPress: () => setAlertVisible(false) }
+        ]);
+        return;
+      }
+
+      // Transform exercises data for Supabase
+      const formattedExercises = exercises.map(ex => ({
+        name: ex.name,
+        type: ex.type,
+        weight: ex.weight ? parseFloat(ex.weight) : null,
+        reps: ex.reps ? parseInt(ex.reps) : null,
+        sets: ex.sets ? parseInt(ex.sets) : null,
+        time: ex.time ? parseFloat(ex.time) : null,
+        distance: ex.distance ? parseFloat(ex.distance) : null
+      }));
+
+      const timeZoneOffset = new Date().getTimezoneOffset() * 60000;
+      const localISOTime = new Date(Date.now() - timeZoneOffset).toISOString();
+
+      const { data, error } = await supabase
+        .from('workouts')
+        .insert({
+          user_id: user.id,
+          exercises: formattedExercises,
+          date: localISOTime
+        })
+        .select();
+
+      if (error) {
+        console.error("Supabase error details:", {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        });
+        throw error;
+      }
+
+      console.log("Successfully created workout:", data);
+      router.push({
+        pathname: '/(app)/workout',
+        params: { refresh: Date.now() }
+      });
     } catch (err) {
       console.error("Error saving workout", err);
       showAlert("Error", "Failed to save workout", [

@@ -2,19 +2,31 @@ import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, Image, ActivityIndicator, TouchableOpacity, BackHandler } from 'react-native';
 import { Text, useTheme, Button, Avatar, IconButton, Card } from 'react-native-paper';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { doc, getDoc, collection, getCountFromServer } from 'firebase/firestore';
-import { db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { followUser, unfollowUser } from '../../services/user';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import supabase from '../../config/supabase';
+
+interface User {
+  user_id: string;
+  username: string;
+  name?: string;
+  image_url?: string;
+  bio?: string;
+  profile: {
+    name?: string;
+    bio?: string;
+    imageUrl?: string;
+  };
+}
 
 export default function UserProfileScreen() {
   const theme = useTheme();
   const { uid } = useLocalSearchParams<{ uid: string }>();
   const router = useRouter();
   const { user } = useAuth();
-  const [userData, setUserData] = useState<any>(null);
+  const [userData, setUserData] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>('');
   const [followersCount, setFollowersCount] = useState<number>(0);
@@ -25,13 +37,23 @@ export default function UserProfileScreen() {
     async function fetchUserProfile() {
       if (!uid) return;
       try {
-        const docRef = doc(db, 'users', uid);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          setUserData(docSnap.data());
-        } else {
-          setError('Profile not found');
-        }
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('user_id, username, name, image_url, bio')
+          .eq('user_id', uid)
+          .single();
+
+        if (data) {
+          setUserData({
+            ...data,
+            username: data.username,
+            profile: {
+              name: data.name,
+              bio: data.bio,
+              imageUrl: data.image_url
+            }
+          });
+        } else setError('Profile not found');
       } catch (err) {
         console.error(err);
         setError('Failed to load profile');
@@ -47,11 +69,18 @@ export default function UserProfileScreen() {
     async function fetchCounts() {
       if (!uid) return;
       try {
-        const followersSnap = await getCountFromServer(collection(db, 'users', uid, 'followers'));
-        setFollowersCount(followersSnap.data().count);
+        const { count: followers } = await supabase
+          .from('followers')
+          .select('*', { count: 'exact', head: true })
+          .eq('following_id', uid);
 
-        const followingSnap = await getCountFromServer(collection(db, 'users', uid, 'following'));
-        setFollowingCount(followingSnap.data().count);
+        const { count: following } = await supabase
+          .from('followers')
+          .select('*', { count: 'exact', head: true })
+          .eq('follower_id', uid);
+
+        setFollowersCount(followers || 0);
+        setFollowingCount(following || 0);
       } catch (error) {
         console.error("Failed to fetch counts: ", error);
       }
@@ -63,9 +92,14 @@ export default function UserProfileScreen() {
   useEffect(() => {
     async function checkFollow() {
       if (!user || !uid) return;
-      const followRef = doc(db, 'users', uid, 'followers', user.uid);
-      const snap = await getDoc(followRef);
-      setIsFollowed(snap.exists());
+      const { data } = await supabase
+        .from('followers')
+        .select()
+        .eq('follower_id', user?.id)
+        .eq('following_id', uid)
+        .single();
+
+      setIsFollowed(!!data);
     }
     checkFollow();
   }, [user, uid]);
@@ -99,7 +133,27 @@ export default function UserProfileScreen() {
   }
 
   const { username, profile } = userData;
-  const isCurrentUser = user?.uid === uid;
+  const isCurrentUser = user?.id === uid;
+
+  const handleFollow = async () => {
+    try {
+      await followUser(uid as string);
+      setIsFollowed(true);
+      setFollowersCount(prev => prev + 1);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const handleUnfollow = async () => {
+    try {
+      await unfollowUser(uid as string);
+      setIsFollowed(false);
+      setFollowersCount(prev => prev - 1);
+    } catch (error) {
+      console.error(error);
+    }
+  };
 
   return (
     <LinearGradient colors={['#080808', '#101010', '#181818']} style={styles.container}>
@@ -185,17 +239,9 @@ export default function UserProfileScreen() {
               </Text>
             </View>
           </TouchableOpacity>
-          <View style={styles.statItem}>
-            <Text style={[styles.statNumber, { color: '#7C4DFF' }]}>
-              {profile?.achievements ?? 0}
-            </Text>
-            <Text style={[styles.statLabel, { color: theme.colors.onBackground }]}>
-              Achievements
-            </Text>
-          </View>
         </View>
 
-        {user?.uid === uid ? (
+        {user?.id === uid ? (
           <View style={styles.followButtonContainer}>
             <Button
               mode="contained"
@@ -213,22 +259,7 @@ export default function UserProfileScreen() {
               mode="contained"
               buttonColor="#7C4DFF"
               textColor="#fff"
-              onPress={async () => {
-                try {
-                  if (isFollowed) {
-                    await unfollowUser(user.uid, uid);
-                    setIsFollowed(false);
-                    setFollowersCount((prev) => Math.max(prev - 1, 0));
-                  } else {
-                    await followUser(user.uid, uid);
-                    setIsFollowed(true);
-                    setFollowersCount((prev) => prev + 1);
-                  }
-                } catch (error) {
-                  console.error("Failed to update follow status:", error);
-                  alert("Failed to update follow status");
-                }
-              }}
+              onPress={isFollowed ? handleUnfollow : handleFollow}
               style={styles.followButton}
             >
               {isFollowed ? "Followed" : "Follow"}

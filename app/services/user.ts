@@ -1,26 +1,41 @@
-import { db } from '../config/firebase';
-import { doc, getDoc, updateDoc, setDoc, deleteDoc } from 'firebase/firestore';
+import supabase from '../config/supabase';
 import * as ImagePicker from 'expo-image-picker';
-import { uploadToCloudinary } from './imageUpload';
+import * as FileSystem from 'expo-file-system';
+import { decode } from 'base64-arraybuffer';
 
-export interface UserProfile {
-  name: string;
-  bio: string;
-  imageUrl: string | null;
-  followers: number;
-  following: number;
-  achievements: number;
-}
-
-export const getUserProfile = async (userId: string): Promise<UserProfile> => {
-  const docRef = doc(db, 'users', userId);
-  const docSnap = await getDoc(docRef);
-  return docSnap.data()?.profile;
+export type UserProfile = {
+  id: string;
+  username: string;
+  profile: {
+    bio?: string;
+    image_url?: string;
+  };
 };
 
-export const updateUserProfile = async (userId: string, profile: Partial<UserProfile>) => {
-  const docRef = doc(db, 'users', userId);
-  await updateDoc(docRef, { profile: profile });
+export const getUserProfile = async (userId: string): Promise<UserProfile> => {
+  const { data, error } = await supabase
+    .from('users')
+    .select('profile')
+    .eq('id', userId)
+    .single();
+  return data?.profile;
+};
+
+export const updateUserProfile = async (
+  userId: string,
+  updates: Partial<{
+    username?: string;
+    name?: string;
+    bio?: string;
+    image_url?: string;
+  }>
+) => {
+  const { error } = await supabase
+    .from('profiles')
+    .update(updates)
+    .eq('user_id', userId);
+
+  if (error) throw error;
 };
 
 export async function pickImage() {
@@ -28,57 +43,97 @@ export async function pickImage() {
     mediaTypes: ImagePicker.MediaTypeOptions.Images,
     allowsEditing: true,
     aspect: [1, 1],
-    quality: 0.5,
-    base64: true,
+    quality: 0.8,
   });
 
-  if (!result.canceled) {
+  if (!result.canceled && result.assets?.[0]?.uri) {
     return result.assets[0].uri;
   }
   return null;
 }
 
-export async function uploadProfileImage(userId: string, uri: string) {
+export const uploadProfileImage = async (userId: string, uri: string) => {
   try {
-    // Upload to Cloudinary first
-    const imageUrl = await uploadToCloudinary(uri);
-    
-    const userRef = doc(db, 'users', userId);
-    await updateDoc(userRef, {
-      'profile.imageUrl': imageUrl
+    // Convert URI to base64
+    const base64Data = await FileSystem.readAsStringAsync(uri, {
+      encoding: FileSystem.EncodingType.Base64,
     });
+
+    const fileExt = uri.split('.').pop() || 'jpg';
+    const fileName = `${userId}-${Date.now()}.${fileExt}`;
+    const contentType = `image/${fileExt === 'png' ? 'png' : 'jpeg'}`;
+
+    // Upload to Supabase Storage
+    const { data, error } = await supabase.storage
+      .from('avatars')
+      .upload(fileName, decode(base64Data), {
+        contentType,
+        upsert: true
+      });
+
+    if (error) throw error;
+
+    // Get public URL
+    const { data: { publicUrl } } = supabase.storage
+      .from('avatars')
+      .getPublicUrl(data.path);
+
+    // Update profile
+    const { error: updateError } = await supabase
+      .from('profiles')
+      .update({ image_url: publicUrl })
+      .eq('user_id', userId);
+
+    if (updateError) throw updateError;
     
-    return imageUrl;
+    return publicUrl;
   } catch (error) {
-    console.error('Error updating profile image:', error);
-    throw error;
+    console.error('Upload error:', error);
+    throw new Error('Failed to upload image');
   }
-}
+};
 
-export const followUser = async (currentUserId: string, targetUserId: string) => {
-  const followerDocRef = doc(db, 'users', targetUserId, 'followers', currentUserId);
-  const followingDocRef = doc(db, 'users', currentUserId, 'following', targetUserId);
+export const followUser = async (targetUid: string) => {
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) throw new Error('Not authenticated');
 
-  // Check if follow relationship already exists.
-  const followerDocSnap = await getDoc(followerDocRef);
-  if (followerDocSnap.exists()) {
-    return; // Already following—do nothing.
+  const { error } = await supabase
+    .from('followers')
+    .insert({
+      follower_id: user.id,
+      following_id: targetUid
+    });
+
+  if (error) {
+    console.error('Follow error:', error);
+    throw new Error(error.message);
   }
 
-  // Create follow relationship.
-  await setDoc(followerDocRef, {
-    uid: currentUserId,
-    timestamp: Date.now()
-  });
-  await setDoc(followingDocRef, {
-    uid: targetUserId,
-    timestamp: Date.now()
+  // Update followers count
+  await supabase.rpc('increment_followers', {
+    user_id: targetUid
   });
 };
 
-export const unfollowUser = async (currentUserId: string, targetUserId: string) => {
-  const followerDocRef = doc(db, 'users', targetUserId, 'followers', currentUserId);
-  const followingDocRef = doc(db, 'users', currentUserId, 'following', targetUserId);
-  await deleteDoc(followerDocRef);
-  await deleteDoc(followingDocRef);
+export const unfollowUser = async (targetUid: string) => {
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) throw new Error('Not authenticated');
+
+  const { error } = await supabase
+    .from('followers')
+    .delete()
+    .eq('follower_id', user.id)
+    .eq('following_id', targetUid);
+
+  if (error) {
+    console.error('Unfollow error:', error);
+    throw new Error(error.message);
+  }
+
+  // Update followers count
+  await supabase.rpc('decrement_followers', {
+    user_id: targetUid
+  });
 }; 

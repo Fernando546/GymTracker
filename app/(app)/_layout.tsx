@@ -1,5 +1,4 @@
 import { Tabs } from 'expo-router';
-import { useTheme } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { View, StyleSheet, BackHandler } from 'react-native';

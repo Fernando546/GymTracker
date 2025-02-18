@@ -6,7 +6,6 @@ import { useAuth } from './context/AuthContext';
 import { LinearGradient } from 'expo-linear-gradient';
 
 export default function Register() {
-  const theme = useTheme();
   const { signUp } = useAuth();
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');

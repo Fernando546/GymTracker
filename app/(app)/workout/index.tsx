@@ -1,12 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { View, FlatList, StyleSheet, TouchableOpacity } from 'react-native';
 import { Text, useTheme, Button, Card } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { getAuth } from 'firebase/auth';
-import { collection, getDocs, query, orderBy } from 'firebase/firestore';
-import { db } from '../../config/firebase';
 import { router } from 'expo-router';
+import supabase from '../../config/supabase';
+import { useFocusEffect } from '@react-navigation/native';
+import { useAuth } from '../../context/AuthContext';
 
 type WorkoutExercise = {
   id: string;
@@ -27,34 +27,64 @@ type WorkoutData = {
 };
 
 export default function WorkoutScreen() {
-  const theme = useTheme();
   const [workouts, setWorkouts] = useState<WorkoutData[]>([]);
   const [expandedWorkoutId, setExpandedWorkoutId] = useState<string | null>(null);
-  const auth = getAuth();
   const accentColor = '#7C4DFF';
   const darkBackground = '#080808';
+  const { user } = useAuth();
 
-  useEffect(() => {
-    const fetchWorkouts = async () => {
-      if (!auth.currentUser) return;
-      try {
-        const workoutsRef = collection(db, "users", auth.currentUser.uid, "workouts");
-        // Order workouts by date descending
-        const q = query(workoutsRef, orderBy("date", "desc"));
-        const querySnapshot = await getDocs(q);
-        const fetchedWorkouts: WorkoutData[] = [];
-        querySnapshot.forEach(doc => {
-          // Combine document ID with fetched data
-          fetchedWorkouts.push({ id: doc.id, ...doc.data() } as WorkoutData);
-        });
-        setWorkouts(fetchedWorkouts);
-      } catch (error) {
-        console.error("Error fetching workouts:", error);
-      }
-    };
+  useFocusEffect(
+    useCallback(() => {
+      const fetchWorkouts = async () => {
+        try {
+          if (!user) {
+            console.log('No authenticated user');
+            return;
+          }
 
-    fetchWorkouts();
-  }, [auth.currentUser]);
+          const { data, error } = await supabase
+            .from('workouts')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('date', { ascending: false });
+
+          if (error) {
+            console.error('Fetch workouts error:', error);
+            return;
+          }
+
+          console.log('Fetched workouts:', data);
+          setWorkouts(data as WorkoutData[]);
+        } catch (error) {
+          console.error('Failed to fetch workouts:', error);
+        }
+      };
+
+      // Get user for the real-time subscription
+      const initializeChannel = async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        const channel = supabase
+          .channel('workouts')
+          .on('postgres_changes', {
+            event: '*',
+            schema: 'public',
+            table: 'workouts',
+            filter: `user_id=eq.${user?.id}`
+          }, () => fetchWorkouts())
+          .subscribe();
+
+        return channel;
+      };
+
+      fetchWorkouts();
+      const channel = initializeChannel();
+
+      return () => {
+        channel.then(c => supabase.removeChannel(c));
+      };
+    }, [user])
+  );
 
   const toggleExpand = (id: string) => {
     setExpandedWorkoutId(prev => (prev === id ? null : id));

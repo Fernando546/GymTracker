@@ -3,11 +3,12 @@ import { Text, TextInput, Button, useTheme } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
 import { LineChart } from 'react-native-chart-kit';
 import { useState, useEffect } from 'react';
-import { doc, getDoc, setDoc, collection, onSnapshot, query, orderBy, getDocs, limit } from 'firebase/firestore';
-import { db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import supabase from '../../config/supabase';
+import { useFocusEffect } from 'expo-router';
+import React from 'react';
 
 export default function WeightProgress() {
   const { user } = useAuth();
@@ -18,69 +19,129 @@ export default function WeightProgress() {
   const [editMode, setEditMode] = useState(false);
   const [startWeight, setStartWeight] = useState('');
 
+  const loadWeights = React.useCallback(async () => {
+    if (!user?.id) return;
+    
+    // Get weight goals
+    const { data: goalsData } = await supabase
+      .from('weight_goals')
+      .select('*')
+      .eq('user_id', user.id)
+      .single();
+
+    if (goalsData) {
+      setTargetWeight(goalsData.target.toString());
+      setStartWeight(goalsData.current.toString());
+    }
+
+    // Get weight entries
+    const { data: entriesData } = await supabase
+      .from('weight_entries')
+      .select('date,weight')
+      .eq('user_id', user.id)
+      .order('date', { ascending: true });
+
+    if (entriesData) {
+      setEntries(entriesData.map(e => ({
+        date: e.date,
+        weight: Number(e.weight)
+      })));
+    }
+
+    // Get latest weight
+    const { data: latestData } = await supabase
+      .from('weight_entries')
+      .select('weight')
+      .eq('user_id', user.id)
+      .order('timestamp', { ascending: false })
+      .limit(1);
+
+    if (latestData?.[0]?.weight) {
+      setCurrentWeight(latestData[0].weight.toString());
+    }
+  }, [user?.id, setTargetWeight, setStartWeight, setEntries, setCurrentWeight]);
+
   useEffect(() => {
-    const loadWeights = async () => {
-      if (!user?.uid) return;
-      
-      const weightDoc = await getDoc(doc(db, 'users', user.uid, 'weight', 'goals'));
-      if (weightDoc.exists()) {
-        setTargetWeight(weightDoc.data().target.toString());
-        setStartWeight(weightDoc.data().current.toString());
-        setEditMode(false);
-      }
-
-      // Get latest weight entry
-      const entriesRef = collection(db, 'users', user.uid, 'weightEntries');
-      const latestEntryQuery = query(entriesRef, orderBy('timestamp', 'desc'), limit(1));
-      const querySnapshot = await getDocs(latestEntryQuery);
-      if (!querySnapshot.empty) {
-        setCurrentWeight(querySnapshot.docs[0].data().weight.toString());
-      }
-
-      const q = query(
-        collection(db, 'users', user.uid, 'weightEntries'),
-        orderBy('timestamp', 'desc')
-      );
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-        const data = snapshot.docs.map(doc => ({
-          date: doc.data().timestamp.toDate().toISOString().split('T')[0],
-          weight: doc.data().weight
-        }));
-        console.log('Weight entries:', data);
-        setEntries(data);
-      });
-
-      return () => unsubscribe();
-    };
-
     loadWeights();
-  }, [user?.uid]);
+  }, [user?.id, loadWeights]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      const channel = supabase
+        .channel('weight-updates')
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'weight_entries',
+          filter: `user_id=eq.${user?.id}`
+        }, () => loadWeights())
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }, [user?.id, loadWeights])
+  );
 
   const saveGoals = async () => {
-    if (!user?.uid) return;
-    await setDoc(doc(db, 'users', user.uid, 'weight', 'goals'), {
-      current: parseFloat(startWeight),
-      target: parseFloat(targetWeight)
-    });
-    setEditMode(false);
+    if (!user?.id) return;
+    
+    const { error } = await supabase
+      .from('weight_goals')
+      .upsert({
+        user_id: user.id,
+        current: Number(startWeight),
+        target: Number(targetWeight)
+      });
+
+    if (error) {
+      console.error('Save goals error:', error);
+      return;
+    }
+    
+    // Add initial weight entry if none exist
+    if (entries.length === 0) {
+      await supabase
+        .from('weight_entries')
+        .insert({
+          user_id: user.id,
+          date: new Date().toISOString().split('T')[0],
+          weight: Number(startWeight)
+        });
+    }
   };
 
   const addTodayWeight = async () => {
-    if (!user?.uid || !currentWeight) return;
-    const today = new Date().toISOString().split('T')[0];
-    await setDoc(doc(db, 'users', user.uid, 'weightEntries', today), {
-      weight: parseFloat(currentWeight),
-      timestamp: new Date()
-    });
+    if (!user?.id || !currentWeight) return;
+    
+    const { error } = await supabase
+      .from('weight_entries')
+      .upsert(
+        {
+          user_id: user.id,
+          date: new Date().toISOString().split('T')[0],
+          weight: Number(currentWeight)
+        },
+        { onConflict: 'user_id,date' }
+      );
+
+    if (error) {
+      console.error('Add weight error:', error);
+      return;
+    }
+    
     setShowForm(false);
   };
 
   const chartData = {
-    labels: entries.slice().reverse().map(e => new Date(e.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })),
+    labels: entries.map(e => new Date(e.date).toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric' 
+    })),
     datasets: [
       // Main data line
       {
-        data: entries.slice().reverse().map(e => e.weight),
+        data: entries.map(e => e.weight),
         color: (opacity = 1) => `rgba(124, 77, 255, ${opacity})`,
         strokeWidth: 2
       },

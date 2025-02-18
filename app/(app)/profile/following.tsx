@@ -1,59 +1,44 @@
 import React, { useState, useEffect } from 'react';
-import { View, FlatList, StyleSheet, TouchableOpacity } from 'react-native';
-import { Text, Avatar, List, useTheme } from 'react-native-paper';
+import { View, FlatList, StyleSheet, TouchableOpacity, BackHandler } from 'react-native';
+import { Text, Avatar, List, useTheme, IconButton } from 'react-native-paper';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
-import { db } from '../../config/firebase';
+import supabase from '../../config/supabase';
+import { Ionicons } from '@expo/vector-icons';
 
 type Following = {
-  uid: string;
-  timestamp: number;
+  following_id: string;
 };
 
 // New component to display detailed following info.
 function FollowingListItem({ uid }: { uid: string }) {
-  const [data, setData] = useState<{ username: string; profile: { name: string; imageUrl?: string } } | null>(null);
-  const [loadingItem, setLoadingItem] = useState(true);
-  const router = useRouter();
+  const [data, setData] = useState<{
+    user_id: string;
+    username: string;
+    name?: string;
+    image_url?: string;
+  } | null>(null);
 
   useEffect(() => {
     async function fetchUser() {
-      const docRef = doc(db, 'users', uid);
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        setData(docSnap.data() as { username: string; profile: { name: string; imageUrl?: string } });
-      }
-      setLoadingItem(false);
+      const { data } = await supabase
+        .from('profiles')
+        .select('user_id, username, name, image_url')
+        .eq('user_id', uid)
+        .single();
+
+      if (data) setData(data);
     }
     fetchUser();
   }, [uid]);
 
-  if (loadingItem) {
-    return (
-      <List.Item
-        title="Loading..."
-        left={(props) => <Avatar.Icon {...props} icon="account" />}
-      />
-    );
-  }
-
-  if (!data) {
-    return (
-      <List.Item
-        title="Unknown user"
-        left={(props) => <Avatar.Icon {...props} icon="account" />}
-      />
-    );
-  }
-
   return (
     <TouchableOpacity onPress={() => router.push(`/profile/${uid}`)}>
       <List.Item
-        title={data.profile.name}
-        description={`@${data.username}`}
+        title={data?.name || 'Unknown user'}
+        description={`@${data?.username || 'unknown'}`}
         left={(props) => 
-          data.profile?.imageUrl ? (
-            <Avatar.Image {...props} size={40} source={{ uri: data.profile.imageUrl }} />
+          data?.image_url ? (
+            <Avatar.Image {...props} size={40} source={{ uri: data.image_url }} />
           ) : (
             <Avatar.Icon {...props} size={40} icon="account" />
           )
@@ -68,18 +53,19 @@ export default function FollowingScreen() {
   const theme = useTheme();
   const [following, setFollowing] = useState<Following[]>([]);
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
   useEffect(() => {
     async function fetchFollowing() {
       if (!uid) return;
       setLoading(true);
       try {
-        const snapshot = await getDocs(collection(db, 'users', uid, 'following'));
-        const list: Following[] = [];
-        snapshot.forEach((doc) => {
-          list.push(doc.data() as Following);
-        });
-        setFollowing(list);
+        const { data } = await supabase
+          .from('followers')
+          .select('following_id')
+          .eq('follower_id', uid);
+
+        if (data) setFollowing(data.map(item => ({ following_id: item.following_id })));
       } catch (error) {
         console.error("Error fetching following: ", error);
       } finally {
@@ -89,8 +75,26 @@ export default function FollowingScreen() {
     fetchFollowing();
   }, [uid]);
 
+  useEffect(() => {
+    const backHandler = BackHandler.addEventListener(
+      'hardwareBackPress',
+      () => {
+        router.back();
+        return true;
+      }
+    );
+    return () => backHandler.remove();
+  }, []);
+
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <View style={styles.header}>
+        <IconButton
+          icon={() => <Ionicons name="arrow-back" size={24} color="#7C4DFF" />}
+          onPress={() => router.back()}
+        />
+        <Text style={styles.title}>Following</Text>
+      </View>
       {loading ? (
         <Text>Loading...</Text>
       ) : following.length === 0 ? (
@@ -98,8 +102,8 @@ export default function FollowingScreen() {
       ) : (
         <FlatList
           data={following}
-          keyExtractor={(item) => item.uid}
-          renderItem={({ item }) => <FollowingListItem uid={item.uid} />}
+          keyExtractor={(item) => item.following_id}
+          renderItem={({ item }) => <FollowingListItem uid={item.following_id} />}
         />
       )}
     </View>
@@ -109,4 +113,15 @@ export default function FollowingScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 16 },
   empty: { textAlign: 'center', marginTop: 20 },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginLeft: 16,
+  },
 }); 

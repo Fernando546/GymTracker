@@ -1,167 +1,118 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, StyleSheet, ScrollView, Image, ActivityIndicator, Animated, TouchableOpacity } from 'react-native';
 import { Card, Text, useTheme, Button } from 'react-native-paper';
-import { getAuth } from 'firebase/auth';
-import { collection, getDocs, query, orderBy, doc, getDoc, updateDoc, onSnapshot, where, limit } from 'firebase/firestore';
-import { db } from '../../config/firebase';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 import { useFocusEffect } from '@react-navigation/native';
+import supabase from '../../config/supabase';
 
-// Helper function to calculate the current streak from an array of workouts.
-function calculateStreak(workouts: { date: string }[]): number {
-  const dayMs = 24 * 60 * 60 * 1000;
-  const datesSet = new Set<number>();
-
-  // Convert workout dates to timestamps and add to set
-  workouts.forEach(w => {
-    const d = new Date(w.date);
-    d.setHours(0, 0, 0, 0);
-    datesSet.add(d.getTime());
-  });
-
-  if (datesSet.size === 0) return 0;
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const todayMs = today.getTime();
-
-  let streak = 0;
-  let currentCheckDate = todayMs;
-
-  // If no workout today, check from yesterday
-  if (!datesSet.has(todayMs)) {
-    currentCheckDate = todayMs - dayMs;
-  }
-
-  // Count consecutive days with workouts
-  while (datesSet.has(currentCheckDate)) {
-    streak++;
-    currentCheckDate -= dayMs;
-  }
-
-  return streak;
-}
-
-// Helper function to calculate the longest streak from an array of workouts.
-function calculateLongestStreak(workouts: { date: string }[]): number {
-  const dayMs = 24 * 60 * 60 * 1000;
-  const dates = workouts.map(w => {
-    const d = new Date(w.date);
-    d.setHours(0, 0, 0, 0);
-    return d.getTime();
-  });
-  const uniqueDates = Array.from(new Set(dates)).sort((a, b) => a - b);
-  if (uniqueDates.length === 0) return 0;
-  let longest = 1;
-  let current = 1;
-  for (let i = 1; i < uniqueDates.length; i++) {
-    if (uniqueDates[i] - uniqueDates[i - 1] === dayMs) {
-      current++;
-    } else {
-      current = 1;
-    }
-    longest = Math.max(longest, current);
-  }
-  return longest;
-}
 
 export default function HomeScreen() {
-  const theme = useTheme();
   const { user } = useAuth();
   const [currentStreak, setCurrentStreak] = useState(0);
   const [longestStreak, setLongestStreak] = useState(0);
-  const [workouts, setWorkouts] = useState<{ date: string }[]>([]);
-  const [loading, setLoading] = useState(false);
   const [currentWeight, setCurrentWeight] = useState('');
   const [targetWeight, setTargetWeight] = useState('');
   const [startWeight, setStartWeight] = useState(0);
   const [progressPercentage, setProgressPercentage] = useState(0);
-  const auth = getAuth();
-  const accentColor = '#7C4DFF';
-  const darkBackground = '#080808';
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  // Real-time streak listener
-  useEffect(() => {
-    if (!user?.uid) return;
-    
-    const unsubscribe = onSnapshot(doc(db, 'users', user.uid, 'streaks', 'current'), (doc) => {
-      if (doc.exists()) {
-        setCurrentStreak(doc.data().count);
-      }
-    });
-    
-    return () => unsubscribe();
-  }, [user?.uid]);
+  // Add theme access from react-native-paper
+  const theme = useTheme();
 
-  useEffect(() => {
-    if (!user?.uid) return;
-    
-    const unsubscribe = onSnapshot(doc(db, 'users', user.uid, 'streaks', 'longest'), (doc) => {
-      if (doc.exists()) {
-        setLongestStreak(doc.data().count);
-      }
-    });
-    
-    return () => unsubscribe();
-  }, [user?.uid]);
+  // Add useLocalSearchParams
+  const params = useLocalSearchParams();
 
-  useEffect(() => {
-    const fetchWorkouts = async () => {
-      if (!auth.currentUser) return;
-      try {
-        const workoutsRef = collection(db, "users", auth.currentUser.uid, "workouts");
-        const q = query(workoutsRef, orderBy("date", "desc"));
-        const querySnapshot = await getDocs(q);
-        const fetchedWorkouts: { date: string }[] = [];
-        querySnapshot.forEach(doc => {
-          fetchedWorkouts.push({ date: doc.data().date } as { date: string });
-        });
-        setWorkouts(fetchedWorkouts);
+  // Update the useEffect for streaks
+  useFocusEffect(
+    useCallback(() => {
+      const fetchStreaks = async () => {
+        if (!user?.id) return;
 
-        const calculatedStreak = calculateStreak(fetchedWorkouts);
-        setCurrentStreak(calculatedStreak);
+        try {
+          const { data: streakData, error } = await supabase.rpc('get_current_streak', {
+            user_id: user.id
+          });
+          
+          const { data: longestData, error: longestError } = await supabase.rpc('get_longest_streak', {
+            user_id: user.id
+          });
 
-        const computedLongestStreak = calculateLongestStreak(fetchedWorkouts);
-        setLongestStreak(computedLongestStreak);
+          console.log('Streak calculation results:', {
+            currentStreak: streakData,
+            longestStreak: longestData,
+            workoutDates: await supabase
+              .from('workouts')
+              .select('date')
+              .eq('user_id', user.id)
+              .then(({ data }) => data?.map(d => 
+                new Date(d.date).toLocaleDateString('en-US', {
+                  timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+                })
+              ))
+          });
 
-        const userDocRef = doc(db, "users", auth.currentUser.uid);
-        const userDocSnap = await getDoc(userDocRef);
-        const storedLongest = userDocSnap.exists() ? userDocSnap.data()?.longestStreak || 0 : 0;
-        if (computedLongestStreak > storedLongest) {
-          await updateDoc(userDocRef, { longestStreak: computedLongestStreak });
+          if (!error && !longestError) {
+            const currentStreakValue = streakData === null ? 0 : streakData;
+            const longestStreakValue = longestData === null ? 0 : longestData;
+
+            setCurrentStreak(currentStreakValue);
+            setLongestStreak(longestStreakValue);
+            
+            // Update user's longest streak if needed
+            const { data: profileData } = await supabase
+              .from('profiles')
+              .select('longest_streak')
+              .eq('user_id', user.id)
+              .single();
+
+            if (longestStreakValue > (profileData?.longest_streak || 0)) {
+              await supabase
+                .from('profiles')
+                .update({ longest_streak: longestStreakValue })
+                .eq('user_id', user.id);
+            }
+          }
+        } catch (error) {
+          console.error("Error fetching streaks:", error);
         }
-      } catch (error) {
-        console.error("Error fetching workouts:", error);
-      }
-    };
+      };
 
-    fetchWorkouts();
-  }, [auth.currentUser]);
+      fetchStreaks();
+    }, [user?.id])
+  );
 
+  // Update weight progress useEffect
   useFocusEffect(
     useCallback(() => {
       const fetchWeightData = async () => {
-        if (!user?.uid) return;
+        if (!user?.id) return;
         
         try {
-          // Get latest weight entry
-          const entriesRef = collection(db, 'users', user.uid, 'weightEntries');
-          const q = query(entriesRef, orderBy('timestamp', 'desc'), limit(1));
-          const querySnapshot = await getDocs(q);
-          
-          if (!querySnapshot.empty) {
-            const latest = querySnapshot.docs[0].data().weight;
-            setCurrentWeight(latest.toString());
+          // Get weight goals
+          const { data: goalsData } = await supabase
+            .from('weight_goals')
+            .select('current, target')
+            .eq('user_id', user.id)
+            .single();
+
+          if (goalsData) {
+            setStartWeight(goalsData.current);
+            setTargetWeight(goalsData.target.toString());
           }
 
-          // Get goals
-          const goalsDoc = await getDoc(doc(db, 'users', user.uid, 'weight', 'goals'));
-          if (goalsDoc.exists()) {
-            setStartWeight(Number(goalsDoc.data().current));
-            setTargetWeight(goalsDoc.data().target.toString());
+          // Get latest weight entry
+          const { data: weightData } = await supabase
+            .from('weight_entries')
+            .select('weight')
+            .eq('user_id', user.id)
+            .order('timestamp', { ascending: false })
+            .limit(1);
+
+          if (weightData?.[0]?.weight) {
+            setCurrentWeight(weightData[0].weight.toString());
           }
         } catch (error) {
           console.error("Error fetching weight data:", error);
@@ -169,7 +120,7 @@ export default function HomeScreen() {
       };
 
       fetchWeightData();
-    }, [user?.uid])
+    }, [user?.id])
   );
 
   useEffect(() => {
@@ -178,17 +129,43 @@ export default function HomeScreen() {
       const target = parseFloat(targetWeight);
       const current = parseFloat(currentWeight);
       
-      const total = start - target;
-      const progress = start - current;
-      const percentage = Math.min(Math.max((progress / total) * 100, 0), 100);
+      const totalChange = Math.abs(start - target);
+      const progress = Math.abs(start - current);
+      const percentage = Math.min(Math.max((progress / totalChange) * 100, 0), 100);
       
       setProgressPercentage(percentage);
     }
   }, [startWeight, currentWeight, targetWeight]);
 
+  // Add useEffect to watch for refresh
+  useEffect(() => {
+    if (params.refresh) {
+      refreshData();
+    }
+  }, [params.refresh]);
+
+  const refreshData = () => setRefreshKey(prev => prev + 1);
+
+  // Add real-time listener
+  useEffect(() => {
+    const channel = supabase.channel('workout-changes')
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'workouts'
+      }, () => {
+        setRefreshKey(prev => prev + 1);
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
   return (
     <LinearGradient
-      colors={[darkBackground, '#101010', '#181818']}
+      colors={[theme.colors.background, '#101010', '#181818']}
       style={styles.container}
     >
       {/* Decorative Elements */}
@@ -200,7 +177,7 @@ export default function HomeScreen() {
         {/* Streak Section */}
         <Card style={styles.card}>
           <View style={styles.cardHeader}>
-            <Ionicons name="flame" size={28} color={accentColor} />
+            <Ionicons name="flame" size={28} color={theme.colors.primary} />
             <Text style={styles.cardTitle}>Workout Streaks</Text>
           </View>
           
@@ -234,7 +211,7 @@ export default function HomeScreen() {
         {/* Progress Section */}
         <Card style={styles.card}>
           <View style={styles.cardHeader}>
-            <Ionicons name="barbell" size={28} color={accentColor} />
+            <Ionicons name="barbell" size={28} color={theme.colors.primary} />
             <TouchableOpacity onPress={() => router.push('/home/weightProgress')}>
               <Text style={styles.cardTitle}>Weight Progress</Text>
             </TouchableOpacity>
@@ -271,19 +248,19 @@ export default function HomeScreen() {
         {/* Recent Activity */}
         <Card style={styles.card}>
           <View style={styles.cardHeader}>
-            <Ionicons name="list" size={28} color={accentColor} />
+            <Ionicons name="list" size={28} color={theme.colors.primary} />
             <Text style={styles.cardTitle}>Recent Activity</Text>
           </View>
           
           <View style={styles.activityContainer}>
-            {workouts.slice(0, 3).map((workout, index) => (
+            {/* workouts.slice(0, 3).map((workout, index) => (
               <View key={index} style={styles.activityItem}>
                 <Ionicons name="checkmark-circle" size={20} color="#7C4DFF" />
                 <Text style={styles.activityText}>
                   Workout on {new Date(workout.date).toLocaleDateString()}
                 </Text>
               </View>
-            ))}
+            )) */}
           </View>
         </Card>
       </View>

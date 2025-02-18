@@ -1,15 +1,14 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator, Animated } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
 import { Text, useTheme, Button, Card, Avatar, IconButton, TextInput as PaperTextInput, Button as PaperButton } from 'react-native-paper';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useUserProfile } from '../../hooks/useUserProfile';
 import { useAuth } from '../../context/AuthContext';
 import * as ImagePicker from 'expo-image-picker';
 import { pickImage, uploadProfileImage, updateUserProfile } from '../../services/user';
-import { collection, getCountFromServer } from 'firebase/firestore';
-import { db } from '../../config/firebase';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import supabase from '../../config/supabase';
 
 export default function ProfileScreen() {
   const theme = useTheme();
@@ -18,9 +17,9 @@ export default function ProfileScreen() {
   const router = useRouter();
   const [isUploading, setIsUploading] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
-  const [newName, setNewName] = useState(profile?.profile?.name || '');
+  const [newName, setNewName] = useState(profile?.name || '');
   const [isEditingBio, setIsEditingBio] = useState(false);
-  const [newBio, setNewBio] = useState(profile?.profile?.bio || '');
+  const [newBio, setNewBio] = useState(profile?.bio || '');
   const [followersCount, setFollowersCount] = useState<number>(0);
   const [followingCount, setFollowingCount] = useState<number>(0);
   const [showAllAchievements, setShowAllAchievements] = useState(false);
@@ -61,7 +60,7 @@ export default function ProfileScreen() {
       const imageUri = await pickImage();
       if (imageUri && user) {
         setIsUploading(true);
-        await uploadProfileImage(user.uid, imageUri);
+        await uploadProfileImage(user.id, imageUri);
         await refetch();
       }
     } catch (error) {
@@ -76,10 +75,7 @@ export default function ProfileScreen() {
     try {
       if (!user) return;
       setIsEditingName(false);
-      await updateUserProfile(user.uid, {
-        ...profile?.profile,
-        name: newName.trim()
-      });
+      await updateUserProfile(user.id, { name: newName.trim() });
       await refetch();
     } catch (error) {
       console.error('Error updating name:', error);
@@ -91,10 +87,7 @@ export default function ProfileScreen() {
     try {
       if (!user) return;
       setIsEditingBio(false);
-      await updateUserProfile(user.uid, {
-        ...profile?.profile,
-        bio: newBio.trim()
-      });
+      await updateUserProfile(user.id, { bio: newBio.trim() });
       await refetch();
     } catch (error) {
       console.error('Error updating bio:', error);
@@ -105,16 +98,20 @@ export default function ProfileScreen() {
   useFocusEffect(
     React.useCallback(() => {
       async function fetchCounts() {
-        if (!user?.uid) return;
-        try {
-          const followersSnap = await getCountFromServer(collection(db, 'users', user.uid, 'followers'));
-          setFollowersCount(followersSnap.data().count);
+        if (!user?.id) return;
+        
+        const { count: followers } = await supabase
+          .from('followers')
+          .select('*', { count: 'exact', head: true })
+          .eq('following_id', user.id);
 
-          const followingSnap = await getCountFromServer(collection(db, 'users', user.uid, 'following'));
-          setFollowingCount(followingSnap.data().count);
-        } catch (error) {
-          console.error("Failed to fetch counts:", error);
-        }
+        const { count: following } = await supabase
+          .from('followers')
+          .select('*', { count: 'exact', head: true })
+          .eq('follower_id', user.id);
+
+        setFollowersCount(followers || 0);
+        setFollowingCount(following || 0);
       }
       fetchCounts();
     }, [user])
@@ -134,7 +131,7 @@ export default function ProfileScreen() {
   if (error) {
     return (
       <View style={styles.container}>
-        <Text>Error: {error}</Text>
+        <Text>Error: {error?.message || 'Unknown error'}</Text>
       </View>
     );
   }
@@ -157,15 +154,15 @@ export default function ProfileScreen() {
                 onPress={handleImagePick}
                 disabled={isUploading}
               >
-                {profile?.profile?.imageUrl ? (
+                {profile?.image_url ? (
                   <Image 
-                    source={{ uri: profile.profile.imageUrl }} 
+                    source={{ uri: profile.image_url }} 
                     style={styles.avatar}
                   />
                 ) : (
                   <Avatar.Text 
                     size={120}
-                    label={profile?.username?.substring(0, 2).toUpperCase() ?? '??'}
+                    label={profile?.name?.substring(0, 2).toUpperCase() ?? '??'}
                     style={{ backgroundColor: theme.colors.primary }}
                   />
                 )}
@@ -193,12 +190,12 @@ export default function ProfileScreen() {
 
                     <TouchableOpacity 
                       onPress={() => {
-                        setNewName(profile?.profile?.name || '');
+                        setNewName(profile?.name || '');
                         setIsEditingName(true);
                       }}
                     >
                       <Text style={[styles.name, { color: theme.colors.onBackground, textAlign: 'center' }]}>
-                        {profile?.profile?.name || 'Add name'}
+                        {profile?.name || 'Add name'}
                       </Text>
                     </TouchableOpacity>
 
@@ -206,7 +203,7 @@ export default function ProfileScreen() {
                       icon="pencil" 
                       size={16}
                       onPress={() => {
-                        setNewName(profile?.profile?.name || '');
+                        setNewName(profile?.name || '');
                         setIsEditingName(true);
                       }}
                       style={{ marginLeft: 4 }}
@@ -239,12 +236,12 @@ export default function ProfileScreen() {
 
                   <TouchableOpacity 
                     onPress={() => {
-                      setNewBio(profile?.profile?.bio || '');
+                      setNewBio(profile?.bio || '');
                       setIsEditingBio(true);
                     }}
                   >
                     <Text style={[styles.bio, { color: theme.colors.onBackground, textAlign: 'center' }]}>
-                      {profile?.profile?.bio || 'Add bio'}
+                      {profile?.bio || 'Add bio'}
                     </Text>
                   </TouchableOpacity>
 
@@ -252,7 +249,7 @@ export default function ProfileScreen() {
                     icon="pencil" 
                     size={16}
                     onPress={() => {
-                      setNewBio(profile?.profile?.bio || '');
+                      setNewBio(profile?.bio || '');
                       setIsEditingBio(true);
                     }}
                     style={{ marginLeft: 4, transform: [{ translateY: -2 }] }} 
@@ -262,7 +259,7 @@ export default function ProfileScreen() {
             </View>
 
             <View style={styles.statsContainer}>
-              <TouchableOpacity onPress={() => router.push(`/profile/followers?uid=${user?.uid}`)}>
+              <TouchableOpacity onPress={() => router.push(`/profile/followers?uid=${user?.id}`)}>
                 <View style={styles.statItem}>
                   <Text style={[styles.statNumber, { color: '#7C4DFF' }]}>
                     {followersCount}
@@ -272,7 +269,7 @@ export default function ProfileScreen() {
                   </Text>
                 </View>
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => router.push(`/profile/following?uid=${user?.uid}`)}>
+              <TouchableOpacity onPress={() => router.push(`/profile/following?uid=${user?.id}`)}>
                 <View style={styles.statItem}>
                   <Text style={[styles.statNumber, { color: '#7C4DFF' }]}>
                     {followingCount}
@@ -282,14 +279,6 @@ export default function ProfileScreen() {
                   </Text>
                 </View>
               </TouchableOpacity>
-              <View style={styles.statItem}>
-                <Text style={[styles.statNumber, { color: '#7C4DFF' }]}>
-                  {profile?.profile?.achievements ?? 0}
-                </Text>
-                <Text style={[styles.statLabel, { color: theme.colors.onBackground }]}>
-                  Achievements
-                </Text>
-              </View>
             </View>
             <View style={styles.followButtonContainer}>
               <Button
