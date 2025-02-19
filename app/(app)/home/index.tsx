@@ -177,7 +177,7 @@ export default function HomeScreen() {
         {/* Streak Section */}
         <Card style={styles.card}>
           <View style={styles.cardHeader}>
-            <Ionicons name="flame" size={28} color={theme.colors.primary} />
+            <Ionicons name="flame" size={28} color="#7C4DFF" />
             <Text style={styles.cardTitle}>Workout Streaks</Text>
           </View>
           
@@ -211,7 +211,7 @@ export default function HomeScreen() {
         {/* Progress Section */}
         <Card style={styles.card}>
           <View style={styles.cardHeader}>
-            <Ionicons name="barbell" size={28} color={theme.colors.primary} />
+            <Ionicons name="barbell" size={28} color="#7C4DFF" />
             <TouchableOpacity onPress={() => router.push('/home/weightProgress')}>
               <Text style={styles.cardTitle}>Weight Progress</Text>
             </TouchableOpacity>
@@ -248,7 +248,7 @@ export default function HomeScreen() {
         {/* Recent Activity */}
         <Card style={styles.card}>
           <View style={styles.cardHeader}>
-            <Ionicons name="list" size={28} color={theme.colors.primary} />
+            <Ionicons name="list" size={28} color="#7C4DFF" />
             <Text style={styles.cardTitle}>Recent Activity</Text>
           </View>
           
